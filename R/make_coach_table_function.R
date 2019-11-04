@@ -6,7 +6,7 @@
 #' @examples
 #' make_coach_t()
 
-make_coach_table <- function(dir = directory, data = data_all, current.report = date.current.report){
+make_coach_table <- function(dir = directory, data = get(data.name), current.report = date.current.report){
 
   # Get just the rows for Care clients, where Primary.Coach has "Coach" in name
   data_coach                 <- data[data$Client.Type == "Care" &
