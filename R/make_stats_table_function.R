@@ -6,7 +6,7 @@
 #' @examples
 #' make_stats_table()
 
-make_stats_table <- function(dir = directory, data = data_all, date.current = date.current.report){
+make_stats_table <- function(dir = directory, data = get(x = starts_with("data_"), globalenv()), date.current = date.current.report){
 
   ## Prep an outcomes dataframe
 
