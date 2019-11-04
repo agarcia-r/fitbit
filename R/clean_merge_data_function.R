@@ -7,16 +7,16 @@
 #' clean_merge_data()
 
 
-clean_merge_data <- function(directory = directory, date.first.day = date.first.day, date.current.report = date.current.report){
+clean_merge_data <- function(dir = directory, first.day = date.first.day, date.current = date.current.report){
 
-  ## Set directory and read in files
-  setwd(directory)
+  ## Set dir and read in files
+  setwd(dir)
 
   ## Format the dates
-  date.first.day      <- as.Date(date.first.day, format = "%m_%d_%Y")
-  date.current.report <- as.Date(date.current.report, format = "%m_%d_%Y")
+  first.day      <- as.Date(first.day, format = "%m_%d_%Y")
+  date.current <- as.Date(date.current, format = "%m_%d_%Y")
 
-  ## Run this line to see all the files in the directory
+  ## Run this line to see all the files in the dir
   files <- list.files()
 
   ## Define a function to import the data
@@ -139,7 +139,7 @@ clean_merge_data <- function(directory = directory, date.first.day = date.first.
   call_log$Call.Date <- as.Date(call_log$Call.Date, format = "%m/%d/%Y")
 
   # Reduce to just calls in the most recent month & only completed calls
-  call_log <- call_log[call_log$Call.Date > date.first.day, ]
+  call_log <- call_log[call_log$Call.Date > first.day, ]
   call_log <- call_log[call_log$Call.Outcome == "Call Completed", ]
 
   # Reduce to most recent call
@@ -254,14 +254,14 @@ clean_merge_data <- function(directory = directory, date.first.day = date.first.
   data_all$Engaged.Status <- as.logical(data_all$Engaged.Status)
 
   # Change engagement status to T if: engaged = F, call date > 1st day of current month, call status = "completed"
-  # Change engagement to "NA" if Archived.At.Date < date.first.day
+  # Change engagement to "NA" if Archived.At.Date < first.day
   data_all$Engaged.Status <- ifelse(data_all$Archived == T &
-                                      data_all$Archived.At.Date < date.first.day,
+                                      data_all$Archived.At.Date < first.day,
                                     NA, data_all$Engaged.Status)
 
   # Also change if they've received a completed call within the month
   data_all$Engaged.Status <- ifelse(data_all$Engaged.Status == F &
-                                      data_all$Call.Date >= date.first.day  &
+                                      data_all$Call.Date >= first.day  &
                                       data_all$Call.Outcome == "Call Completed",
                                     T, data_all$Engaged.Status)
 
@@ -269,8 +269,8 @@ clean_merge_data <- function(directory = directory, date.first.day = date.first.
   data_all$Engaged.Status <- ifelse(is.na(data_all$Engaged.Status), F, data_all$Engaged.Status)
 
   ## Add dates
-  data_all$Report.Month         <- date.first.day
-  data_all$date.current.report  <- date.current.report
+  data_all$Report.Month         <- first.day
+  data_all$date.current  <- date.current
 
   ## Now deal with enrollment
 
@@ -289,7 +289,7 @@ clean_merge_data <- function(directory = directory, date.first.day = date.first.
 
   # Change enrollment to current if (1) Not archived, or if (2) archived but date is in current month
   data_all$Enrollment.Current <- ifelse(data_all$Archived == T, F, T)
-  data_all$Enrollment.Current <- ifelse(data_all$Archived == T & data_all$Archived.At.Date > date.first.day, T, data_all$Enrollment.Current)
+  data_all$Enrollment.Current <- ifelse(data_all$Archived == T & data_all$Archived.At.Date > first.day, T, data_all$Enrollment.Current)
 
   # Calculate enrollment time in days
   # Calculate avg. time enrolled
@@ -298,31 +298,31 @@ clean_merge_data <- function(directory = directory, date.first.day = date.first.
                                    NA)
 
   data_all$Diff.Current <- ifelse(data_all$Enrollment.Current == T,
-                                  date.current.report - data_all$Enrolled.At.Date,
+                                  date.current - data_all$Enrolled.At.Date,
                                   NA)
 
   data_all$Diff.All     <- ifelse(data_all$Enrollment.Current == T,
-                                  date.current.report - data_all$Enrolled.At.Date,
+                                  date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.Care    <- ifelse(data_all$Enrollment.Current == T &
                                     data_all$Client.Type == "Care",
-                                  date.current.report - data_all$Enrolled.At.Date,
+                                  date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.SaaS    <- ifelse(data_all$Enrollment.Current == T &
                                     data_all$Client.Type == "SaaS",
-                                  date.current.report - data_all$Enrolled.At.Date,
+                                  date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.Humana  <- ifelse(data_all$Enrollment.Current == T &
                                     data_all$Group == "Humana",
-                                  date.current.report - data_all$Enrolled.At.Date,
+                                  date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.UHC     <- ifelse(data_all$Enrollment.Current == T &
                                     data_all$Group == "UHC",
-                                  date.current.report - data_all$Enrolled.At.Date,
+                                  date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   # Return data_all

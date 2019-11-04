@@ -6,7 +6,7 @@
 #' @examples
 #' make_coach_t()
 
-make_coach_table <- function(directory = directory, data = data_all, date.current.report = date.current.report){
+make_coach_table <- function(dir = directory, data = data_all, current.report = date.current.report){
 
   # Get just the rows for Care clients, where Primary.Coach has "Coach" in name
   data_coach                 <- data[data$Client.Type == "Care" &
@@ -36,14 +36,14 @@ make_coach_table <- function(directory = directory, data = data_all, date.curren
   data_coach$Vacancy.Count     <- data_coach$Max.Capacity - data_coach$Total.Per.Coach
   data_coach$Vacancy.Percent   <- round((1 - (data_coach$Total.Per.Coach / data_coach$Max.Capacity)) * 100, 0)
   data_coach$Report.Date       <- NA
-  data_coach$Report.Date       <- as.Date(date.current.report, format = "%m_%d_%Y")
+  data_coach$Report.Date       <- as.Date(current.report, format = "%m_%d_%Y")
 
 
   # Rearrange it
   data_coach                   <- data_coach[ , c(15, 1:14)]
 
   # Write it
-  write.csv(data_coach, file = paste(directory, "/CoachCapacity_", date.current.report, ".csv", sep = ""))
+  write.csv(data_coach, file = paste(dir, "/CoachCapacity_", current.report, ".csv", sep = ""))
 
   # Return it
   return(data_coach)

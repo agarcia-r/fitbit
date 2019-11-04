@@ -6,7 +6,7 @@
 #' @examples
 #' make_stats_table()
 
-make_stats_table <- function(directory = directory, data = data_all, date.current.report = date.current.report){
+make_stats_table <- function(dir = directory, data = data_all, date.current = date.current.report){
 
   ## Prep an outcomes dataframe
 
@@ -17,7 +17,7 @@ make_stats_table <- function(directory = directory, data = data_all, date.curren
                        "Engaged", "Engaged.Percent")
 
   # Add report.date
-  stats$Report.Date <- as.Date(date.current.report, format = "%m_%d_%Y")
+  stats$Report.Date <- as.Date(date.current, format = "%m_%d_%Y")
 
   # Fill in the rows
   stats$Region <- as.character(c("GA", "NCSC", "NCSC", "TX", "TX", "TX", "TX", rep("ALL", 2), "WA", rep("ALL", 2)))
@@ -131,7 +131,7 @@ make_stats_table <- function(directory = directory, data = data_all, date.curren
   stats$Group.Region <- NULL
 
   # And write it
-  write.csv(stats, file = paste(directory, "/CustomerStats_", date.current.report, ".csv", sep = ""))
+  write.csv(stats, file = paste(dir, "/CustomerStats_", date.current, ".csv", sep = ""))
 
   return(stats)
 }
