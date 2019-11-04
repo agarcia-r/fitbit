@@ -6,7 +6,10 @@
 #' @examples
 #' make_stats_table()
 
-make_stats_table <- function(dir = directory, data = ls(pos = 1), date.current = date.current.report){
+make_stats_table <- function(dir = directory, data = data, date.current = date.current.report){
+
+  ## Pull the data from the global environment
+  data = get(data, globalenv())
 
   ## Prep an outcomes dataframe
 
