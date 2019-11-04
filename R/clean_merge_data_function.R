@@ -7,7 +7,7 @@
 #' clean_merge_data()
 
 
-clean_merge_data <- function(directory, date.first.day = date.first.day, date.current.report = date.current.report){
+clean_merge_data <- function(directory = directory, date.first.day = date.first.day, date.current.report = date.current.report){
 
   ## Set directory and read in files
   setwd(directory)
