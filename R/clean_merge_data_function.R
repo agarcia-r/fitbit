@@ -328,3 +328,5 @@ clean_merge_data <- function(directory, date.first.day, date.current.report){
   # Return data_all
   return(data_all)
 }
+
+rstudio-test
