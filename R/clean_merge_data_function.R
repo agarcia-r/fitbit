@@ -13,7 +13,7 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
   setwd(dir)
 
   ## Format the dates
-  first.day      <- as.Date(first.day, format = "%m_%d_%Y")
+  first.day    <- as.Date(first.day, format = "%m_%d_%Y")
   date.current <- as.Date(date.current, format = "%m_%d_%Y")
 
   ## Run this line to see all the files in the dir
