@@ -11,16 +11,8 @@ library(gridExtra)
 library(kableExtra)
 library(reshape2)
 
-### A helper function to assist with merging data
-get_merge_cols <- function(data1, data2){
-  names1 <- colnames(data1)
-  names2 <- colnames(data2)
-  remove <- setdiff(names1, names2)
-  return(names1[! names1 %in% remove])
-}
-
 ### A function to clean & merge the data
-clean_merge_humana <- function(dir = directory, first.day = date.first.day, date.current = date.current.report, month = month.name){
+clean_humana <- function(dir = directory, first.day = date.first.day, date.current = date.current.report, month = month.name){
 
   ## Set dir and read in files
   setwd(dir)
@@ -127,3 +119,5 @@ clean_merge_humana <- function(dir = directory, first.day = date.first.day, date
   # Return data_all
   return(data_all)
 }
+
+
