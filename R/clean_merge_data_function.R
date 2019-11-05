@@ -254,22 +254,24 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
   data_all$Engaged.Status <- as.logical(data_all$Engaged.Status)
 
   # Change engagement status to T if: engaged = F, call date > 1st day of current month, call status = "completed"
-  # Change engagement to "NA" if Archived.At.Date < first.day
-  data_all$Engaged.Status <- ifelse(data_all$Archived == T &
-                                      data_all$Archived.At.Date < first.day,
-                                    NA, data_all$Engaged.Status)
 
-  # Also change if they've received a completed call within the month
+  # Change engagement to "NA" archived = T so they won't be counted towards the denominator
+  data_all$Engaged.Status <- ifelse(data_all$Archived == T, NA, data_all$Engaged.Status)
+
+  # Change engagement to "T" if archived = T but Archived.At.Date < date.first.day
+  data_all$Engaged.Status <- ifelse(data_all$Archived == T & data_all$Archived.At.Date >= first.day, T, data_all$Engaged.Status)
+
+  # Also change to T if not archived = F & they received a completed call & call was within the month
   data_all$Engaged.Status <- ifelse(data_all$Engaged.Status == F &
-                                      data_all$Call.Date >= first.day  &
-                                      data_all$Call.Outcome == "Call Completed",
+                                    data_all$Call.Date >= first.day  &
+                                    data_all$Call.Outcome == "Call Completed",
                                     T, data_all$Engaged.Status)
 
   # Finally, NA's will count as FALSE here
   data_all$Engaged.Status <- ifelse(is.na(data_all$Engaged.Status), F, data_all$Engaged.Status)
 
   ## Add dates
-  data_all$Report.Month         <- first.day
+  data_all$Report.Month  <- first.day
   data_all$date.current  <- date.current
 
   ## Now deal with enrollment
