@@ -6,6 +6,19 @@
 #' @examples
 #' clean_merge_data()
 
+# For testing
+rm(list = ls())
+library(tidyverse)
+directory = "~/Desktop/FHS/Coaching/Data/October/10.28"
+date.first.day = "10_01_2019"
+date.current.report = "10_28_2019"
+
+get_merge_cols <- function(data1, data2){
+  names1 <- colnames(data1)
+  names2 <- colnames(data2)
+  remove <- setdiff(names1, names2)
+  return(names1[! names1 %in% remove])
+}
 
 clean_merge_data <- function(dir = directory, first.day = date.first.day, date.current = date.current.report){
 
@@ -157,86 +170,11 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
   merge.columns10 <- get_merge_cols(data_all, call_log)
   data_all <- merge(data_all, call_log, by = merge.columns10, all = T)
 
-  # This merge added 3 rows (would expect no rows added)
+  # This may add rows
   # This is because some participants in the call log don't have Salesforce IDs
   # e.g. These are notes from the coaches ("LA call-in")
-
-  ## Let's clean up the Group columns
-
-  # Convert Group.1 & Group.2 character class -> we want to use str_detect to find matching strings
-  data_all$Group.1 <- as.character(data_all$Group.1)
-  data_all$Group.2 <- as.character(data_all$Group.2)
-
-  # Create a new group column to collapse all of the different group tags
-  # Write a function to search all colummns for a specified group tag (e.g. "TX" or "FIT")
-  # Group.name refers to the part of the current group labels to look for
-  # Tag indicates how it should be labeled in the new column
-  data_all$Region <- NA
-  data_all$Group  <- NA
-
-  # Make functions to search all columns and recategorize participants by region and group
-  # The is.na() piece prevents it from overwriting the cell if it's already been categorized
-  recat_reg <- function(region.name, tag){
-    ifelse(is.na(data_all$Region) & str_detect(data_all$"Group.1", region.name) |
-             is.na(data_all$Region) & str_detect(data_all$"Group.2", region.name) |
-             is.na(data_all$Region) & str_detect(data_all$"Group.3", region.name) |
-             is.na(data_all$Region) & str_detect(data_all$"Group.4", region.name) |
-             is.na(data_all$Region) & str_detect(data_all$"Group.5", region.name) |
-             is.na(data_all$Region) & str_detect(data_all$"Group.6", region.name) |
-             is.na(data_all$Region) & str_detect(data_all$"Group.7", region.name), tag, data_all$Region)
-  }
-
-  recat_grp <- function(group.name, tag){
-    ifelse(is.na(data_all$Group) & str_detect(data_all$"Group.1", group.name) |
-             is.na(data_all$Group) & str_detect(data_all$"Group.2", group.name) |
-             is.na(data_all$Group) & str_detect(data_all$"Group.3", group.name) |
-             is.na(data_all$Group) & str_detect(data_all$"Group.4", group.name) |
-             is.na(data_all$Group) & str_detect(data_all$"Group.5", group.name) |
-             is.na(data_all$Group) & str_detect(data_all$"Group.6", group.name) |
-             is.na(data_all$Group) & str_detect(data_all$"Group.7", group.name), tag, data_all$Group)
-  }
-
-  # Recategorize by group & region
-  data_all$Region <- recat_reg("TX", "TX")
-  data_all$Region <- recat_reg("NCSC", "NCSC")
-  data_all$Region <- recat_reg("GA", "GA")
-  data_all$Region <- recat_reg("SEIU", "WA")
-  data_all$Region <- recat_reg("Humana", "ALL")
-
-  data_all$Group  <- recat_grp("CGM", "CGM")
-  data_all$Group  <- recat_grp("FIT", "FIT")
-  data_all$Group  <- recat_grp("JBC", "JOY")
-  data_all$Group  <- recat_grp("JBT", "JOY")
-  data_all$Group  <- recat_grp("SEIU", "SEIU")
-  data_all$Group  <- recat_grp("Humana", "Humana")
-
-  # If none of the above apply, enter "GMP"
-  data_all$Group  <- ifelse(!is.na(data_all$Region) & is.na(data_all$Group), "GMP", data_all$Group)
-
-  # Finally add a column with the labels combined
-  data_all$Group.Region <- paste(data_all$Region, data_all$Group, sep = "_")
-  data_all$Group.Region <- ifelse(data_all$Group.Region == "NA_NA", NA, data_all$Group.Region)
-
-  # Tally by group
-  data_all$Group_GA_GMP   <- ifelse(data_all$Group.Region == "GA_GMP", 1, 0)
-  data_all$Group_NCSC_CGM <- ifelse(data_all$Group.Region == "NCSC_CGM", 1, 0)
-  data_all$Group_NCSC_GMP <- ifelse(data_all$Group.Region == "NCSC_GMP", 1, 0)
-  data_all$Group_TX_CGM   <- ifelse(data_all$Group.Region == "TX_CGM", 1, 0)
-  data_all$Group_TX_FIT   <- ifelse(data_all$Group.Region == "TX_FIT", 1, 0)
-  data_all$Group_TX_GMP   <- ifelse(data_all$Group.Region == "TX_GMP", 1, 0)
-  data_all$Group_TX_JOY   <- ifelse(data_all$Group.Region == "TX_JOY", 1, 0)
-  data_all$Group_SEIU     <- ifelse(data_all$Group.Region == "WA_SEIU", 1, 0)
-  data_all$Group_Humana   <- ifelse(data_all$Group.Region == "ALL_Humana", 1, 0)
-
-  data_all$Group_GA_GMP_SUM   <- sum(data_all$Group_GA_GMP)
-  data_all$Group_NCSC_CGM_SUM <- sum(data_all$Group_NCSC_CGM)
-  data_all$Group_NCSC_GMP_SUM <- sum(data_all$Group_NCSC_GMP)
-  data_all$Group_TX_CGM_SUM   <- sum(data_all$Group_TX_CGM)
-  data_all$Group_TX_FIT_SUM   <- sum(data_all$Group_TX_FIT)
-  data_all$Group_TX_GMP_SUM   <- sum(data_all$Group_TX_GMP)
-  data_all$Group_TX_JOY_SUM   <- sum(data_all$Group_TX_JOY)
-  data_all$Group_SEIU_SUM     <- sum(data_all$Group_SEIU)
-  data_all$Group_Humana_SUM   <- sum(data_all$Group_Humana)
+  # Remove these
+  data_all <- data_all[!is.na(data_all$Group.1), ]
 
   # Add columns on the end to specify SaaS or Care
   saas_combined$Organization.Name <- as.factor(saas_combined$Organization.Name)
@@ -244,6 +182,91 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
 
   data_all$Client.Type <- ifelse(data_all$Organization.Name %in% saas_orgs, "SaaS", "Care")
   data_all$Client.Type <- as.factor(data_all$Client.Type)
+
+  ## Let's clean up the Group columns
+
+  # Convert Group.1 & Group.2 character class -> we want to use str_detect to find matching strings
+  data_all$Group.1 <- as.character(data_all$Group.1)
+  data_all$Group.2 <- as.character(data_all$Group.2)
+
+  # Create a new group & region column to collapse all of the different group tags
+  # There are only 3 regions - GA, TX, NCSC -- any other region gets "ALL"
+  data_all$Region <- "ALL"
+
+  # A participant's region is always part of the tag in Group.1 -> there are no NA's in this column
+  # Don't need to search the other columns
+  data_all$Region <- ifelse(str_detect(data_all$Group.1, "TX"), "TX", data_all$Region)
+  data_all$Region <- ifelse(str_detect(data_all$Group.1, "GA"), "GA", data_all$Region)
+  data_all$Region <- ifelse(str_detect(data_all$Group.1, "NCSC"), "NCSC", data_all$Region)
+
+  # Let's dig in to groups
+  # Start by giving anyone with a region tag other than all "GMP" by default
+  table(data_all$Group)
+  data_all$Group  <- ifelse(data_all$Region != "ALL", "GMP", NA)
+
+  # Let's make indicators
+
+  # If any column contains "CGM," assign indicator to "CGM"
+  data_all$Group.CGM <- NA
+  data_all$Group.CGM <- ifelse(str_detect(data_all$Group.1, "CGM") |
+                               str_detect(data_all$Group.2, "CGM") |
+                               str_detect(data_all$Group.3, "CGM") |
+                               str_detect(data_all$Group.4, "CGM") |
+                               str_detect(data_all$Group.5, "CGM") |
+                               str_detect(data_all$Group.6, "CGM") |
+                               str_detect(data_all$Group.7, "CGM"), 1, 0)
+
+  # If any column c
+  data_all$Group.CGM.Remove <- ifelse(str_detect(data_all$Group.1, "DECLINED") | str_detect(data_all$Group.1, "ELIGIBLE") | str_detect(data_all$Group.1, "DROPFF") | str_detect(data_all$Group.1, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
+                                      str_detect(data_all$Group.2, "DECLINED") | str_detect(data_all$Group.2, "ELIGIBLE") | str_detect(data_all$Group.2, "DROPFF") | str_detect(data_all$Group.2, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
+                                      str_detect(data_all$Group.3, "DECLINED") | str_detect(data_all$Group.3, "ELIGIBLE") | str_detect(data_all$Group.3, "DROPFF") | str_detect(data_all$Group.3, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
+                                      str_detect(data_all$Group.4, "DECLINED") | str_detect(data_all$Group.4, "ELIGIBLE") | str_detect(data_all$Group.4, "DROPFF") | str_detect(data_all$Group.4, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
+                                      str_detect(data_all$Group.5, "DECLINED") | str_detect(data_all$Group.5, "ELIGIBLE") | str_detect(data_all$Group.5, "DROPFF") | str_detect(data_all$Group.5, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
+                                      str_detect(data_all$Group.6, "DECLINED") | str_detect(data_all$Group.6, "ELIGIBLE") | str_detect(data_all$Group.6, "DROPFF") | str_detect(data_all$Group.6, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
+                                      str_detect(data_all$Group.7, "DECLINED") | str_detect(data_all$Group.7, "ELIGIBLE") | str_detect(data_all$Group.7, "DROPFF") | str_detect(data_all$Group.7, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE"),
+                                      1, 0)
+
+  data_all$Group.CGM <- ifelse(data_all$Group.CGM == 1 & data_all$Group.CGM.Remove == 1, 0, data_all$Group.CGM)
+
+  data_all$Group.FIT <- NA
+  data_all$Group.FIT <- ifelse(str_detect(data_all$Group.1, "FIT") |
+                               str_detect(data_all$Group.2, "FIT") |
+                               str_detect(data_all$Group.3, "FIT") |
+                               str_detect(data_all$Group.4, "FIT") |
+                               str_detect(data_all$Group.5, "FIT") |
+                               str_detect(data_all$Group.6, "FIT") |
+                               str_detect(data_all$Group.7, "FIT"), 1, 0)
+
+  data_all$Group.JBT <- NA
+  data_all$Group.JBT <- ifelse(str_detect(data_all$Group.1, "JBT") |
+                               str_detect(data_all$Group.2, "JBT") |
+                               str_detect(data_all$Group.3, "JBT") |
+                               str_detect(data_all$Group.4, "JBT") |
+                               str_detect(data_all$Group.5, "JBT") |
+                               str_detect(data_all$Group.6, "JBT") |
+                               str_detect(data_all$Group.7, "JBT"), 1, 0)
+
+  data_all$Group.JBC <- NA
+  data_all$Group.JBC <- ifelse(str_detect(data_all$Group.1, "JBC") |
+                                 str_detect(data_all$Group.2, "JBC") |
+                                 str_detect(data_all$Group.3, "JBC") |
+                                 str_detect(data_all$Group.4, "JBC") |
+                                 str_detect(data_all$Group.5, "JBC") |
+                                 str_detect(data_all$Group.6, "JBC") |
+                                 str_detect(data_all$Group.7, "JBC"), 1, 0)
+
+  data_all$Group.JOY <- NA
+  data_all$Group.JOY <- ifelse(data_all$Group.JBC == 1 | data_all$Group.JBT == 1, 1, 0)
+
+  # Now overwrite if the conditions are met
+  data_all$Group <- ifelse(data_all$Group.CGM == 1, "CGM", data_all$Group)
+  data_all$Group <- ifelse(data_all$Group.FIT == 1, "FIT", data_all$Group)
+  data_all$Group <- ifelse(data_all$Group != "FIT" & data_all$Group.JOY == 1, "JOY", data_all$Group)
+  data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Organization.Name == "Humana", "Humana", data_all$Group)
+  data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Organization.Name == "SEIU 775 Benefits Group", "SEIU", data_all$Group)
+  data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Organization.Name == "Optum CMDM", "SaaS - Optum", data_all$Group)
+  data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "SaaS", "SaaS - Other", data_all$Group)
+  data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "Care", "Care", data_all$Group)
 
   ## Clean up the engagement column
 
@@ -253,22 +276,15 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
   data_all$Engaged.Status <- ifelse(data_all$Engaged.Status == "false", "FALSE", data_all$Engaged.Status)
   data_all$Engaged.Status <- as.logical(data_all$Engaged.Status)
 
-  # Change engagement status to T if: engaged = F, call date > 1st day of current month, call status = "completed"
+  # If they've received a completed call within the month, set engaged = T
+  data_all$Engaged.Status <- ifelse(!is.na(data_all$Call.Date) &                                             # If there is a call listed, and...
+                                    data_all$Call.Date >= first.day &                                        # Date of call is >= first day of month and...
+                                    data_all$Call.Date <= date.current &                                     # Date of call is <= date of current report and...
+                                    data_all$Call.Outcome == "Call Completed", T, data_all$Engaged.Status)  # Call outcome = "Completed", set to "T," if not, do nothing
 
-  # Change engagement to "NA" archived = T so they won't be counted towards the denominator
-  data_all$Engaged.Status <- ifelse(data_all$Archived == T, NA, data_all$Engaged.Status)
-
-  # Change engagement to "T" if archived = T but Archived.At.Date < date.first.day
-  data_all$Engaged.Status <- ifelse(data_all$Archived == T & data_all$Archived.At.Date >= first.day, T, data_all$Engaged.Status)
-
-  # Also change to T if not archived = F & they received a completed call & call was within the month
-  data_all$Engaged.Status <- ifelse(data_all$Engaged.Status == F &
-                                    data_all$Call.Date >= first.day  &
-                                    data_all$Call.Outcome == "Call Completed",
-                                    T, data_all$Engaged.Status)
-
-  # Finally, NA's will count as FALSE here
-  data_all$Engaged.Status <- ifelse(is.na(data_all$Engaged.Status), F, data_all$Engaged.Status)
+  # If Archived.At.Date < first day of the month, set to NA
+  data_all$Engaged.Status <- ifelse(!is.na(data_all$Archived.At.Date) &
+                                    data_all$Archived.At.Date < first.day, NA, data_all$Engaged.Status)
 
   ## Add dates
   data_all$Report.Month  <- first.day
@@ -308,26 +324,58 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.Care    <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Client.Type == "Care",
+                                  data_all$Client.Type == "Care",
                                   date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.SaaS    <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Client.Type == "SaaS",
+                                  data_all$Client.Type == "SaaS",
                                   date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   data_all$Diff.Humana  <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Group == "Humana",
+                                  data_all$Group == "Humana",
                                   date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
-  data_all$Diff.UHC     <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Group == "UHC",
+  data_all$Diff.CGM     <- ifelse(data_all$Enrollment.Current == T &
+                                  data_all$Group == "CGM",
                                   date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+  data_all$Diff.FIT     <- ifelse(data_all$Enrollment.Current == T &
+                                  data_all$Group == "FIT",
+                                  date.current - data_all$Enrolled.At.Date,
+                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+  data_all$Diff.GMP     <- ifelse(data_all$Enrollment.Current == T &
+                                  data_all$Organization.Name == "UHG Glucose Management Program",
+                                  date.current - data_all$Enrolled.At.Date,
+                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+  data_all$Diff.JOY     <- ifelse(data_all$Enrollment.Current == T &
+                                  data_all$Organization.Name == "JOY",
+                                  date.current - data_all$Enrolled.At.Date,
+                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+  data_all$Diff.SaaS.Optum     <- ifelse(data_all$Enrollment.Current == T &
+                                    data_all$Organization.Name == "SaaS - Optum",
+                                  date.current - data_all$Enrolled.At.Date,
+                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+  data_all$Diff.SaaS.Other    <- ifelse(data_all$Enrollment.Current == T &
+                                           data_all$Organization.Name == "SaaS - Other",
+                                         date.current - data_all$Enrolled.At.Date,
+                                         data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+  data_all$Diff.SaaS.SEIU     <- ifelse(data_all$Enrollment.Current == T &
+                                           data_all$Organization.Name == "SaaS - Optum",
+                                         date.current - data_all$Enrolled.At.Date,
+                                         data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   # Return data_all
   return(data_all)
 }
 
+data_10_28 <- clean_merge_data(
+)
