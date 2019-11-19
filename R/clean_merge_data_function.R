@@ -6,22 +6,11 @@
 #' @examples
 #' clean_merge_data()
 
-# For testing
-rm(list = ls())
-library(tidyverse)
-library(lubridate)
-dir = "~/Desktop/FHS/Coaching/Data/November/11.11"
-first.day = "11_01_2019"
-date.current = "11_11_2019"
+clean_merge_data <- function(dir = directory, first.day = date.first.day, date.current = date.current.report){
 
-get_merge_cols <- function(data1, data2){
-  names1 <- colnames(data1)
-  names2 <- colnames(data2)
-  remove <- setdiff(names1, names2)
-  return(names1[! names1 %in% remove])
-}
-
-#clean_merge_data <- function(dir = directory, first.day = date.first.day, date.current = date.current.report){
+  ## Helper packages
+  require(tidyverse)
+  require(lubridate)
 
   ## Set dir and read in files
   setwd(dir)
@@ -375,7 +364,4 @@ get_merge_cols <- function(data1, data2){
   # Return data_all
   return(data_all)
 }
-
-data_10_31 <- clean_merge_data()
-
 
