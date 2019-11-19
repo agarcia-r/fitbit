@@ -48,10 +48,18 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
     saas_p5                           <- get_billing_data("Partial 5")
     saas_p6                           <- get_billing_data("Partial 6")
 
-    # Call log
+    # Call log is needed to update engagement status of participants
     call_log            = read.csv(files[str_detect(files, "Coach Calls")], stringsAsFactors = F)
 
     ## Plus data
+
+    # Define a function to merge the data based on shared columns
+    get_merge_cols <- function(data1, data2){
+      names1 <- colnames(data1)
+      names2 <- colnames(data2)
+      remove <- setdiff(names1, names2)
+      return(names1[! names1 %in% remove])
+    }
 
     # Merge the data based on shared columns
     merge.columns1 <- get_merge_cols(plus_gmp, plus_gmp_fitbit)
@@ -84,13 +92,16 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
     merge.columns9 <- get_merge_cols(plus_combined, saas_combined)
     data_all <- merge(saas_combined, plus_combined, by = merge.columns9, all = T)
 
-  ## Now let's clean up the identifier columns - we want to extract any Salesforce IDs
+ ## Now let's clean up the identifier columns - we want to extract any Salesforce IDs so we can merge this with the call sheet
     # Change all of them to character
     data_all$Identifier.Value.1 <- as.character(data_all$Identifier.Value.1)
     data_all$Identifier.Value.2 <- as.character(data_all$Identifier.Value.2)
     data_all$Identifier.Value.3 <- as.character(data_all$Identifier.Value.3)
     data_all$Identifier.Value.4 <- as.character(data_all$Identifier.Value.4)
 
+    # There are multiple variations of how "Salesforce ID" is identified, e.g. might say "salesforce-id," "SalesforceLeadID" etc.
+    # There are four rows where the actual value of the ID might live
+    # Some Salesforce IDs are completely wrong, no clue why -> real IDs must have word "salesforce" in label column and start with "00" in value column
     # Extract just the Salesforce IDs from Identifier.Value.1 by selecting only values with label containing "alesforce" that also start with "00"
     data_all$Salesforce.Lead.ID1 <- ifelse(startsWith(data_all$Identifier.Value.1, "00") & str_detect(data_all$Identifier.Label.1, "alesforce"),
                                            data_all$Identifier.Value.1, NA)
@@ -107,6 +118,7 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
     data_all$Salesforce.Lead.ID4 <- ifelse(startsWith(data_all$Identifier.Value.4, "00") & str_detect(data_all$Identifier.Label.4, "alesforce"),
                                            data_all$Identifier.Value.4, NA)
 
+    # Some IDs may have whitespace or erroneous characters
     # Remove whitespace and erroneous characters from both Salesforce ID columns
     data_all$Salesforce.Lead.ID1 <- str_trim(data_all$Salesforce.Lead.ID1, side = "both")
     data_all$Salesforce.Lead.ID2 <- str_trim(data_all$Salesforce.Lead.ID2, side = "both")
@@ -138,14 +150,15 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
 
     # Convert Call.Date to Date
     # Change to 4-digit year, then coerce to date type format
+    # Only search for "19" when it occurs at the end of the string (e.g. don't insert "2019" for the day)
     call_log$Call.Date <- str_replace(call_log$Call.Date, "19$", "2019")
     call_log$Call.Date <- as.Date(call_log$Call.Date, format = "%m/%d/%Y")
 
-    # Reduce to just calls in the most recent month & only completed calls
+    # Reduce to just calls in the right time period (1st of month -> currend data date) & only completed calls
     call_log <- call_log[call_log$Call.Date > first.day & call_log$Call.Date <= date.current, ]
     call_log <- call_log[call_log$Call.Outcome == "Call Completed", ]
 
-    # Reduce to most recent call
+    # Reduce to most recent call (or it won't merge, but any one completed call is enough to toggle 'Engaged')
     # Find IDs where there have been > 1 call within the current month
     n_occur <- data.frame(table(call_log$Salesforce.Lead.ID))
 
@@ -156,7 +169,7 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
     # Reduce call_log to most recent calls
     call_log <- call_log %>% group_by(Salesforce.Lead.ID) %>% arrange(Call.Date) %>% slice(n())
 
-    # Finally merge it
+    # Finally merge it with the full billing data
     merge.columns10 <- get_merge_cols(data_all, call_log)
     data_all <- merge(data_all, call_log, by = merge.columns10, all = T)
 
@@ -215,7 +228,7 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
     # If someone has a "1" in the Group.CGM column -and- a "1" in the Group.CGM.Remove column, replace the 1 w/a 0 for Group.CGM (e.g. they were DECLINED, etc.)
     data_all$Group.CGM <- ifelse(data_all$Group.CGM == 1 & data_all$Group.CGM.Remove == 1, 0, data_all$Group.CGM)
 
-    # If someone has "FIT" in any G
+    # Make an indicator for someone who has "FIT" in any Group column
     data_all$Group.FIT <- NA
     data_all$Group.FIT <- ifelse(str_detect(data_all$Group.1, "FIT") |
                                  str_detect(data_all$Group.2, "FIT") |
@@ -225,6 +238,7 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
                                  str_detect(data_all$Group.6, "FIT") |
                                  str_detect(data_all$Group.7, "FIT"), 1, 0)
 
+    # Make an indicator for someone who has "JBT" in any Group column
     data_all$Group.JBT <- NA
     data_all$Group.JBT <- ifelse(str_detect(data_all$Group.1, "JBT") |
                                  str_detect(data_all$Group.2, "JBT") |
@@ -234,6 +248,7 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
                                  str_detect(data_all$Group.6, "JBT") |
                                  str_detect(data_all$Group.7, "JBT"), 1, 0)
 
+    # Make an indicator for someone who has "JBT" in any Group column
     data_all$Group.JBC <- NA
     data_all$Group.JBC <- ifelse(str_detect(data_all$Group.1, "JBC") |
                                    str_detect(data_all$Group.2, "JBC") |
@@ -243,10 +258,11 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
                                    str_detect(data_all$Group.6, "JBC") |
                                    str_detect(data_all$Group.7, "JBC"), 1, 0)
 
+    # JBT/JBC both refer to "JOY" -> collect these into a column
     data_all$Group.JOY <- NA
     data_all$Group.JOY <- ifelse(data_all$Group.JBC == 1 | data_all$Group.JBT == 1, 1, 0)
 
-    # Now overwrite if the conditions are met
+    # Now overwrite the existing "Group" classificatoin (should be "GMP" for all) if the participant has the appropriate indicator
     data_all$Group <- ifelse(data_all$Group.CGM == 1, "CGM", data_all$Group) # We've already removed ineligible/declined/etc. folks above
     data_all$Group <- ifelse(data_all$Group.FIT == 1, "FIT", data_all$Group)
     data_all$Group <- ifelse(data_all$Group != "FIT" & data_all$Group.JOY == 1, "JOY", data_all$Group) # Not sure why it's necessary to specify != "FIT here
