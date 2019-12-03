@@ -216,14 +216,14 @@ clean_merge_data <- function(dir = directory, first.day = date.first.day, date.c
                                  str_detect(data_all$Group.7, "CGM"), 1, 0)
 
     # If any column column contains "DECLINED," "ELIGIBLE," "NOT_ELIGIBLE", "DROPOFF", or "ENDED" -> assign a "1" in the Group.CGM.Remove indicator column
-    data_all$Group.CGM.Remove <- ifelse(str_detect(data_all$Group.1, "DECLINED") | str_detect(data_all$Group.1, "ELIGIBLE") | str_detect(data_all$Group.1, "DROPFF") | str_detect(data_all$Group.1, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
-                                        str_detect(data_all$Group.2, "DECLINED") | str_detect(data_all$Group.2, "ELIGIBLE") | str_detect(data_all$Group.2, "DROPFF") | str_detect(data_all$Group.2, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
-                                        str_detect(data_all$Group.3, "DECLINED") | str_detect(data_all$Group.3, "ELIGIBLE") | str_detect(data_all$Group.3, "DROPFF") | str_detect(data_all$Group.3, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
-                                        str_detect(data_all$Group.4, "DECLINED") | str_detect(data_all$Group.4, "ELIGIBLE") | str_detect(data_all$Group.4, "DROPFF") | str_detect(data_all$Group.4, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
-                                        str_detect(data_all$Group.5, "DECLINED") | str_detect(data_all$Group.5, "ELIGIBLE") | str_detect(data_all$Group.5, "DROPFF") | str_detect(data_all$Group.5, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
-                                        str_detect(data_all$Group.6, "DECLINED") | str_detect(data_all$Group.6, "ELIGIBLE") | str_detect(data_all$Group.6, "DROPFF") | str_detect(data_all$Group.6, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE") |
-                                        str_detect(data_all$Group.7, "DECLINED") | str_detect(data_all$Group.7, "ELIGIBLE") | str_detect(data_all$Group.7, "DROPFF") | str_detect(data_all$Group.7, "ENDED") |str_detect(data_all$Group.1, "NOT_ELIGIBLE"),
-                                        1, 0)
+    data_all$Group.CGM.Remove <- ifelse(str_detect(data_all$Group.1, "DECLINED") | str_detect(data_all$Group.1, "ELIGIBLE") | str_detect(data_all$Group.1, "DROPFF") | str_detect(data_all$Group.1, "ENDED") |
+                                  str_detect(data_all$Group.2, "DECLINED") | str_detect(data_all$Group.2, "ELIGIBLE") | str_detect(data_all$Group.2, "DROPFF") | str_detect(data_all$Group.2, "ENDED") |
+                                  str_detect(data_all$Group.3, "DECLINED") | str_detect(data_all$Group.3, "ELIGIBLE") | str_detect(data_all$Group.3, "DROPFF") | str_detect(data_all$Group.3, "ENDED") |
+                                  str_detect(data_all$Group.4, "DECLINED") | str_detect(data_all$Group.4, "ELIGIBLE") | str_detect(data_all$Group.4, "DROPFF") | str_detect(data_all$Group.4, "ENDED") |
+                                  str_detect(data_all$Group.5, "DECLINED") | str_detect(data_all$Group.5, "ELIGIBLE") | str_detect(data_all$Group.5, "DROPFF") | str_detect(data_all$Group.5, "ENDED") |
+                                  str_detect(data_all$Group.6, "DECLINED") | str_detect(data_all$Group.6, "ELIGIBLE") | str_detect(data_all$Group.6, "DROPFF") | str_detect(data_all$Group.6, "ENDED") |
+                                  str_detect(data_all$Group.7, "DECLINED") | str_detect(data_all$Group.7, "ELIGIBLE") | str_detect(data_all$Group.7, "DROPFF") | str_detect(data_all$Group.7, "ENDED"),
+                                  1, 0)
 
     # If someone has a "1" in the Group.CGM column -and- a "1" in the Group.CGM.Remove column, replace the 1 w/a 0 for Group.CGM (e.g. they were DECLINED, etc.)
     data_all$Group.CGM <- ifelse(data_all$Group.CGM == 1 & data_all$Group.CGM.Remove == 1, 0, data_all$Group.CGM)
