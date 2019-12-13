@@ -2,11 +2,14 @@
 #'
 #' This function takes the output of the clean_merge_data function and computes coach capacity and related statistics.
 #' @keywords table coach
-#' @export
+#' @export make_coach_table
 #' @examples
 #' make_coach_t()
 
-make_coach_table <- function(dir = directory, data = get(data.name), current.report = date.current.report){
+make_coach_table <- function(dir = directory, data, current.report = date.current.report){
+
+  # Packages
+  require(tidyverse)
 
   # Get just the rows for Care clients, where Primary.Coach has "Coach" in name
   data_coach                 <- data[data$Client.Type == "Care" &

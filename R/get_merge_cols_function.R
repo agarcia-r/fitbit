@@ -2,7 +2,7 @@
 #'
 #' This is a generic function that identifies the common columns between 2 datasets for merging.
 #' @keywords cleaning merging
-#' @export
+#' @export get_merge_cols
 #' @examples
 #' get_merge_cols()
 

@@ -2,16 +2,14 @@
 #'
 #' This function takes the output of the clean_merge_data function and turns it into the customer statistics table.
 #' @keywords table coach customer
-#' @export
+#' @export make_stats_table
 #' @examples
 #' make_stats_table()
 
-# For testing
-data.name = "data_10_31"
-data = get(data.name)
-date.current.report = "10_31_2019"
+make_stats_table <- function(dir = directory, data, date.current = date.current.report){
 
-make_stats_table <- function(dir = directory, data = get(data.name), date.current = date.current.report){
+  ## Packages
+  require(tidyverse)
 
   ## Prep an outcomes dataframe
 
