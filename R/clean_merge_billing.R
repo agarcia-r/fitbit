@@ -8,10 +8,6 @@
 
 clean_merge_billing <- function(dir = directory, first.day = date.first.day, date.current = date.current.report, final.report = F){
 
-  ## Helper packages
-  require(tidyverse)
-  require(lubridate)
-
   ## Set dir and read in files
   setwd(dir)
 
