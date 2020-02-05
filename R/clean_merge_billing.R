@@ -21,8 +21,8 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   ## Define a function to import the data
   get_billing_data <- function(str.name, file.list = files){
     data                       <- read.csv(files[stringr::str_detect(file.list, str.name)], stringsAsFactors = F)
-    data$Enrolled.At.Date      <- str_trunc(data$Enrolled.At.Date, 10, ellipsis = "")
-    data$Archived.At.Date      <- str_trunc(data$Archived.At.Date, 10, ellipsis = "")
+    data$Enrolled.At.Date      <- stringr::str_trunc(data$Enrolled.At.Date, 10, ellipsis = "")
+    data$Archived.At.Date      <- stringr::str_trunc(data$Archived.At.Date, 10, ellipsis = "")
 
     data$Enrolled.At.Date      <- as.Date(data$Enrolled.At.Date, format = "%m/%d/%Y")
     data$Archived.At.Date      <- as.Date(data$Archived.At.Date, format = "%m/%d/%Y")
@@ -112,15 +112,15 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
 
   # Some IDs may have whitespace or erroneous characters
   # Remove whitespace and erroneous characters from both Salesforce ID columns
-  data_all$Salesforce.Lead.ID1 <- str_trim(data_all$Salesforce.Lead.ID1, side = "both")
-  data_all$Salesforce.Lead.ID2 <- str_trim(data_all$Salesforce.Lead.ID2, side = "both")
-  data_all$Salesforce.Lead.ID3 <- str_trim(data_all$Salesforce.Lead.ID3, side = "both")
-  data_all$Salesforce.Lead.ID4 <- str_trim(data_all$Salesforce.Lead.ID4, side = "both")
+  data_all$Salesforce.Lead.ID1 <- stringr::str_trim(data_all$Salesforce.Lead.ID1, side = "both")
+  data_all$Salesforce.Lead.ID2 <- stringr::str_trim(data_all$Salesforce.Lead.ID2, side = "both")
+  data_all$Salesforce.Lead.ID3 <- stringr::str_trim(data_all$Salesforce.Lead.ID3, side = "both")
+  data_all$Salesforce.Lead.ID4 <- stringr::str_trim(data_all$Salesforce.Lead.ID4, side = "both")
 
-  data_all$Salesforce.Lead.ID1 <- str_replace_all(data_all$Salesforce.Lead.ID1, "[[:punct:]]", " ")
-  data_all$Salesforce.Lead.ID2 <- str_replace_all(data_all$Salesforce.Lead.ID2, "[[:punct:]]", " ")
-  data_all$Salesforce.Lead.ID3 <- str_replace_all(data_all$Salesforce.Lead.ID3, "[[:punct:]]", " ")
-  data_all$Salesforce.Lead.ID4 <- str_replace_all(data_all$Salesforce.Lead.ID4, "[[:punct:]]", " ")
+  data_all$Salesforce.Lead.ID1 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID1, "[[:punct:]]", " ")
+  data_all$Salesforce.Lead.ID2 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID2, "[[:punct:]]", " ")
+  data_all$Salesforce.Lead.ID3 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID3, "[[:punct:]]", " ")
+  data_all$Salesforce.Lead.ID4 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID4, "[[:punct:]]", " ")
 
   # Start combining the columns by adding the IDs from Salesforce.Lead.ID1
   # Then, if no ID was added in step 1 (e.g. Salesforce.Lead.ID is still NA), copy over Salesforce.Lead.ID2 (if it exists)
@@ -140,12 +140,12 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
     call_log$Call.Date <- as.character(call_log$Call.Date)
 
     # Change the date format
-    call_log$Call.Date <- str_trunc(call_log$Call.Date, 8, ellipsis = "")
-    call_log$Call.Date <- str_trim(call_log$Call.Date, side = "both")
+    call_log$Call.Date <- stringr::str_trunc(call_log$Call.Date, 8, ellipsis = "")
+    call_log$Call.Date <- stringr::str_trim(call_log$Call.Date, side = "both")
 
     # Remove any whitespace or special characters from the call_log IDs
-    call_log$Salesforce.Lead.ID <- str_trim(call_log$Salesforce.Lead.ID, side = "both")
-    call_log$Salesforce.Lead.ID <- str_replace_all(call_log$Salesforce.Lead.ID, "[[:punct:]]", " ")
+    call_log$Salesforce.Lead.ID <- stringr::str_trim(call_log$Salesforce.Lead.ID, side = "both")
+    call_log$Salesforce.Lead.ID <- stringr::str_replace_all(call_log$Salesforce.Lead.ID, "[[:punct:]]", " ")
 
     # Limit the data to just the IDs we can match - discard the rest
     call_log <- call_log[startsWith(call_log$Salesforce.Lead.ID, "00"), ]
@@ -153,7 +153,7 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
     # Convert Call.Date to Date
     # Change to 4-digit year, then coerce to date type format
     # Only search for "19" when it occurs at the end of the string (e.g. don't insert "2019" for the day)
-    call_log$Call.Date <- str_replace(call_log$Call.Date, "19$", "2019")
+    call_log$Call.Date <- stringr::str_replace(call_log$Call.Date, "19$", "2019")
     call_log$Call.Date <- as.Date(call_log$Call.Date, format = "%m/%d/%Y")
 
     # Reduce to just calls in the right time period (1st of month -> current data date) & only completed calls
