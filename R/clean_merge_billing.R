@@ -17,7 +17,7 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
 
   ## Format the dates
   first.day    <- as.Date(first.day, format = "%m-%d-%Y")
-  date.current <- as.Date(date.current, format = "%-%d-%Y")
+  date.current <- as.Date(date.current, format = "%m-%d-%Y")
 
   ## Run this line to see all the files in the dir
   files <- list.files()
@@ -35,10 +35,8 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
 
   ## Read the files in, deal with dates here because it's easier
   # Care
-  plus_humana                       <- get_billing_data("Humana")
-  plus_gmp                          <- get_billing_data("Fitbit Plus UHG Glucose Management Program 2019")
-  plus_gmp_fitbit                   <- get_billing_data("Fitbit Plus UHG Glucose Management Program  Fitbit")
-  plus_seiu                         <- get_billing_data("SEIU")
+  care_humana                       <- get_billing_data("Humana")
+  care_seiu                         <- get_billing_data("SEIU")
 
   # SaaS
   saas_p1                           <- get_billing_data("Partial 1")
@@ -48,17 +46,14 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   saas_p5                           <- get_billing_data("Partial 5")
   saas_p6                           <- get_billing_data("Partial 6")
 
-  # Call logs areneeded to update engagement status of participants - both the Master Calls file & the Carenet file
-  call_log1 <- read.csv(files[str_detect(files, "Coach Calls")], stringsAsFactors = F)
-
   # If it's before the first of the month, then the Carenet file might not exist, we have to account for this
-  carenet_exists <- ifelse(str_detect(files, "Carenet"), 1, 0)
+  carenet_exists <- ifelse(str_detect(files, "CARENET"), 1, 0)
   carenet_exists <- sum(carenet_exists)
 
   if(carenet_exists > 0){
-    call_log2 <- read.csv(files[str_detect(files, "Carenet")], stringsAsFactors = F)
+    call_log <- read.csv(files[str_detect(files, "CARENET_TO_FITBIT_CONTACT")], header = T, sep = "|")
   } else {
-    return()
+    carenet_exists <- 0
   }
 
   ## Plus data
@@ -66,35 +61,32 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   # Define a function to merge the data based on shared columns
 
   # Merge the data based on shared columns
-  merge.columns1 <- get_merge_cols(plus_gmp, plus_gmp_fitbit)
-  plus_combined <- merge(plus_gmp, plus_gmp_fitbit, by = merge.columns1, all = T)
-
-  merge.columns2 <- get_merge_cols(plus_combined, plus_seiu)
-  plus_combined <- merge(plus_combined, plus_seiu, by = merge.columns2, all = T)
-
-  merge.columns3 <- get_merge_cols(plus_combined, plus_humana)
-  plus_combined <- merge(plus_combined, plus_humana, by = merge.columns3, all = T)
+  merge.columns1 <- get_merge_cols(care_humana, care_seiu)
+  care_combined <- merge(care_humana, care_seiu, by = merge.columns1, all = T)
 
   # Merge all SaaS data
-  merge.columns4 <- get_merge_cols(saas_p1, saas_p2)
-  saas_combined   <- merge(saas_p1, saas_p2, by = merge.columns4, all = T)
+  merge.columns2 <- get_merge_cols(saas_p1, saas_p2)
+  saas_combined   <- merge(saas_p1, saas_p2, by = merge.columns2, all = T)
 
-  merge.columns5 <- get_merge_cols(saas_combined, saas_p3)
-  saas_combined   <- merge(saas_combined, saas_p3, by = merge.columns5, all = T)
+  merge.columns3 <- get_merge_cols(saas_combined, saas_p3)
+  saas_combined   <- merge(saas_combined, saas_p3, by = merge.columns3, all = T)
 
-  merge.columns6 <- get_merge_cols(saas_combined, saas_p4)
-  saas_combined   <- merge(saas_combined, saas_p4, by = merge.columns6, all = T)
+  merge.columns4 <- get_merge_cols(saas_combined, saas_p4)
+  saas_combined   <- merge(saas_combined, saas_p4, by = merge.columns4, all = T)
 
-  merge.columns7 <- get_merge_cols(saas_combined, saas_p5)
-  saas_combined   <- merge(saas_combined, saas_p5, by = merge.columns7, all = T)
+  merge.columns5 <- get_merge_cols(saas_combined, saas_p5)
+  saas_combined   <- merge(saas_combined, saas_p5, by = merge.columns5, all = T)
 
-  merge.columns8 <- get_merge_cols(saas_combined, saas_p6)
-  saas_combined   <- merge(saas_combined, saas_p6, by = merge.columns8, all = T)
+  merge.columns6 <- get_merge_cols(saas_combined, saas_p6)
+  saas_combined   <- merge(saas_combined, saas_p6, by = merge.columns6, all = T)
 
   # Merge Plus data with SaaS data
   # print(nrow(plus_combined) + nrow(saas_combined)) should yield same number of rows as total from individual datasets
-  merge.columns9 <- get_merge_cols(plus_combined, saas_combined)
-  data_all <- merge(saas_combined, plus_combined, by = merge.columns9, all = T)
+  merge.columns7 <- get_merge_cols(care_combined, saas_combined)
+  data_all <- merge(saas_combined, care_combined, by = merge.columns7, all = T)
+
+  # Remove all the other datasets
+  rm(list = c("care_combined", "care_humana", "care_seiu", "saas_p1", "saas_p2", "saas_p3", "saas_p4", "saas_p5", "saas_p6"))
 
   ## Now let's clean up the identifier columns - we want to extract any Salesforce IDs so we can merge this with the call sheet
   # Change all of them to character
@@ -143,75 +135,70 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID4), data_all$Salesforce.Lead.ID4, data_all$Salesforce.Lead.ID)
 
   ## Finally, let's merge the call data into the full data
-  # We only need IDs, call date, outcomes
-  call_log1 <- call_log1[ , c(1, 4, 7)]
-
-  # Let's format call_log2 to match call_log1
   # Change the column names
-  call_log2 <- call_log2[ , c(1, 4, 9)]
-  call_colnames <- colnames(call_log1)
-  colnames(call_log2) <- call_colnames
+    call_log <- call_log[ , c(1, 4, 9)]
+    call_colnames <- c("Salesforce.Lead.ID", "Call.Date", "Call.Outcome")
+    colnames(call_log) <- call_colnames
 
-  # Change the date format
-  call_log2$Call.Date <- str_trunc(call_log2$Call.Date, 8, ellipsis = "")
-  call_log2$Call.Date <- str_trim(call_log2$Call.Date, side = "both")
+    # Convert dates back to character
+    call_log$Call.Date <- as.character(call_log$Call.Date)
 
-  # Now try merging them together
-  call_cols <- get_merge_cols(call_log1, call_log2)
-  call_log <- merge(call_log1, call_log2, by = call_cols, all = T)
+    # Change the date format
+    call_log$Call.Date <- str_trunc(call_log$Call.Date, 8, ellipsis = "")
+    call_log$Call.Date <- str_trim(call_log$Call.Date, side = "both")
 
-  # Remove any whitespace or special characters from the call_log IDs
-  call_log$Salesforce.Lead.ID <- str_trim(call_log$Salesforce.Lead.ID, side = "both")
-  call_log$Salesforce.Lead.ID <- str_replace_all(call_log$Salesforce.Lead.ID, "[[:punct:]]", " ")
+    # Remove any whitespace or special characters from the call_log IDs
+    call_log$Salesforce.Lead.ID <- str_trim(call_log$Salesforce.Lead.ID, side = "both")
+    call_log$Salesforce.Lead.ID <- str_replace_all(call_log$Salesforce.Lead.ID, "[[:punct:]]", " ")
 
-  # Limit the data to just the IDs we can match - discard the rest
-  call_log <- call_log[startsWith(call_log$Salesforce.Lead.ID, "00"), ]
+    # Limit the data to just the IDs we can match - discard the rest
+    call_log <- call_log[startsWith(call_log$Salesforce.Lead.ID, "00"), ]
 
-  # Convert Call.Date to Date
-  # Change to 4-digit year, then coerce to date type format
-  # Only search for "19" when it occurs at the end of the string (e.g. don't insert "2019" for the day)
-  call_log$Call.Date <- str_replace(call_log$Call.Date, "19$", "2019")
-  call_log$Call.Date <- as.Date(call_log$Call.Date, format = "%m/%d/%Y")
+    # Convert Call.Date to Date
+    # Change to 4-digit year, then coerce to date type format
+    # Only search for "19" when it occurs at the end of the string (e.g. don't insert "2019" for the day)
+    call_log$Call.Date <- str_replace(call_log$Call.Date, "19$", "2019")
+    call_log$Call.Date <- as.Date(call_log$Call.Date, format = "%m/%d/%Y")
 
-  # Reduce to just calls in the right time period (1st of month -> current data date) & only completed calls
-  if(final.report == T){
-    call_log <- call_log[call_log$Call.Date >= first.day & call_log$Call.Date <= date.current, ]
-  } else {
-    call_log <- call_log[call_log$Call.Date >= first.day & call_log$Call.Date < date.current, ]
-  }
-
-  # Add a check to see if call_log is empty
-  dim.data <- dim(call_log)
-  data.null <- ifelse(dim.data[1] == 0 | dim.data[2] == 0, 1, 0)
-
-  # If call log is not null (e.g. dim.null == 0), then reduce to latest completed call for each participant
-  # and merge this in to the full data. If call log is null, do nothing.
-  if(data.null == 0){
-    call_log <- call_log[str_detect(call_log$Call.Outcome, "ompleted"), ]
-
-    # Reduce to most recent call (or it won't merge, but any one completed call is enough to toggle 'Engaged')
-    # Find IDs where there have been > 1 call within the current month
-    n_occur <- data.frame(table(call_log$Salesforce.Lead.ID))
-    dim.n.occur <- dim(n_occur)
-
-    # List IDs with duplicates
-    # If there are none, skip this step
-    if(dim.n.occur[1] != 0 & dim.n.occur[2] != 0){
-      n_occur   <- n_occur[n_occur$Freq > 1, ]
-      call_log  <- call_log[call_log$Salesforce.Lead.ID %in% n_occur$Var1[n_occur$Freq > 1], ]
+    # Reduce to just calls in the right time period (1st of month -> current data date) & only completed calls
+    if(final.report == T){
+      call_log <- call_log[call_log$Call.Date >= first.day & call_log$Call.Date <= date.current, ]
     } else {
-      call_log <- call_log
+      call_log <- call_log[call_log$Call.Date >= first.day & call_log$Call.Date < date.current, ]
     }
 
-    # Reduce call_log to most recent calls
-    call_log <- call_log %>% group_by(Salesforce.Lead.ID) %>% arrange(Call.Date) %>% slice(n())
+    # Add a check to see if call_log is empty
+    dim.data <- dim(call_log)
+    data.null <- ifelse(dim.data[1] == 0 | dim.data[2] == 0, 1, 0)
 
-    # Finally merge it with the full billing data
-    merge.columns10 <- get_merge_cols(data_all, call_log)
-    data_all <- merge(data_all, call_log, by = merge.columns10, all = T)
-  } else {
-    data_all <- data_all
-  }
+    # If call log is not null (e.g. dim.null == 0), then reduce to latest completed call for each participant
+    # and merge this in to the full data. If call log is null, do nothing.
+    if(data.null == 0){
+      call_log <- call_log[str_detect(call_log$Call.Outcome, "ompleted"), ]
+
+      # Reduce to most recent call (or it won't merge, but any one completed call is enough to toggle 'Engaged')
+      # Find IDs where there have been > 1 call within the current month
+      n_occur <- data.frame(table(call_log$Salesforce.Lead.ID))
+      dim.n.occur <- dim(n_occur)
+
+      # List IDs with duplicates
+      # If there are none, skip this step
+      if(dim.n.occur[1] != 0 & dim.n.occur[2] != 0){
+        n_occur   <- n_occur[n_occur$Freq > 1, ]
+        call_log  <- call_log[call_log$Salesforce.Lead.ID %in% n_occur$Var1[n_occur$Freq > 1], ]
+      } else {
+        call_log <- call_log
+      }
+
+      # Reduce call_log to most recent calls
+      call_log <- call_log %>% group_by(Salesforce.Lead.ID) %>% arrange(Call.Date) %>% slice(n())
+
+      # Finally merge it with the full billing data
+      merge.columns10 <- get_merge_cols(data_all, call_log)
+      data_all <- merge(data_all, call_log, by = merge.columns10, all = T)
+    } else {
+      data_all <- data_all
+    }
 
   # Should have the exact same number of rows
   # Some participants in the call log don't have Salesforce IDs
@@ -228,19 +215,6 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Client.Type <- ifelse(data_all$Organization.Name %in% saas_orgs, "SaaS", "Care")
   data_all$Client.Type <- as.factor(data_all$Client.Type)
 
-  # Create a new region column to collapse all of the different group tags
-  # There are only 3 regions - GA, TX, NCSC -- any other region gets "ALL"
-  data_all$Region <- "ALL"
-
-  # A participant's region is always part of the tag in Group.1 -> there are no NA's in this column
-  # Don't need to search the other columns
-  # Should lead to perfect separation
-  # table(data_all$Region, data_all$Client.Type)
-  # table(data_all$Organization.Name[data_all$Region == "ALL" & data_all$Client.Type == "Care"])
-  data_all$Region <- ifelse(str_detect(data_all$Group.1, "TX"), "TX", data_all$Region)
-  data_all$Region <- ifelse(str_detect(data_all$Group.1, "GA"), "GA", data_all$Region)
-  data_all$Region <- ifelse(str_detect(data_all$Group.1, "SEIU"), "WA", data_all$Region)
-
   # Let's dig in to groups
 
   # Categorize
@@ -251,25 +225,11 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
     # Start by creating blank column
       data_all$Group <- NA
 
-    # Then everyone gets GMP by default
-      data_all$Group  <- ifelse(data_all$Region != "ALL", "GMP", NA)
-
     # Then categorize by subgroup
-      data_all$Group <- ifelse(str_detect(data_all$Group.All, "GA"), "GA", data_all$Group)
-      data_all$Group <- ifelse(str_detect(data_all$Group.All, "TX"), "TX", data_all$Group)
-      data_all$Group <- ifelse(str_detect(data_all$Group.All, "FIT"), "FIT", data_all$Group)
-      data_all$Group <- ifelse(str_detect(data_all$Group.All, "JBT") | str_detect(data_all$Group, "JBC"), "JOY", data_all$Group)
       data_all$Group <- ifelse(data_all$Organization.Name == "Humana", "Humana", data_all$Group)
       data_all$Group <- ifelse(data_all$Organization.Name == "SEIU 775 Benefits Group", "SEIU", data_all$Group)
-      data_all$Group <- ifelse(data_all$Organization.Name == "Optum CMDM", "SaaS - Optum", data_all$Group)
-      data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "SaaS", "SaaS - Other", data_all$Group)
+      data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "SaaS", "SaaS", data_all$Group)
       data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "Care", "Care", data_all$Group)
-
-    # Create indicator for removal conditions
-    data_all$Group.Remove <- ifelse(str_detect(data_all$Group.All, "DROPOFF")  | str_detect(data_all$Group.All, "DECLINED") | str_detect(data_all$Group.All, "ENDED"), 1, 0)
-
-    # If anyone has a removal flag, reset their group to just GMP
-    data_all$Group <- ifelse(data_all$Group.Remove == 1, "GMP", data_all$Group)
 
   ## Now deal with enrollment
   # First clean up Archived column
@@ -293,15 +253,6 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Enrollment.Current <- data_all$Enrollment.YTD                                                                 # Set Enrollment.Current to = Enrollment.YTD to start (less restrictive)
   data_all$Enrollment.Current <- ifelse(!is.na(data_all$Archived.At.Date) & data_all$Archived.At.Date < first.day,       # Now, if Archived.At.Date exists & is less than 1st of current month...
                                         F, data_all$Enrollment.Current)                                                 # set Enrollment.Current to True, else maintain existing value
-
-  # Generate a report to see if there's any SaaS customer with a Care tag
-  data_all$Anomaly.Label <- ifelse(data_all$Client.Type == "SaaS" & str_detect(data_all$Group.Region, "SaaS", negate = T), 1, 0)
-  label_anomaly <- data_all[data_all$Anomaly.Label == 1, ]
-  write.csv(label_anomaly, paste(paste(paste(dir,"Label.Anomalies", sep = "/"), date.current, sep = "_"), "csv", sep = "."))
-
-  # If Label.Anomalies = T, just change client.type to "Care"
-  data_all$Client.Type <- ifelse(data_all$Anomaly.Label == 1, "Care", data_all$Client.Type)
-
   ## Clean up the engagement column
 
   # Change to logical
@@ -311,7 +262,13 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   # Let's log these before we change their status
   data_all$Anomaly.Engaged <- ifelse(data_all$Enrollment.Current == F & data_all$Engaged.Status == T, 1, 0)
   engaged_anomaly <- data_all[data_all$Enrollment.Current == F & data_all$Engaged.Status == T, ]
-  write.csv(engaged_anomaly, paste(paste(paste(dir,"Engaged.Anomalies", sep = "/"), date.current, sep = "_"), "csv", sep = "."))
+
+  # If engaged_anomaly is not NULL, write it to a CSV
+  if(dim(engaged_anomaly)[1] > 0){
+    write.csv(engaged_anomaly, paste(paste(paste(dir,"Engaged.Anomalies", sep = "/"), date.current, sep = "_"), "csv", sep = "."))
+  } else {
+    rm(engaged_anomaly)
+  }
 
   # After selecting these out, switch anyone not currently enrolled to Engaged = F
   data_all$Engaged.Status <- ifelse(data_all$Enrollment.Current == F, F, data_all$Engaged.Status)
@@ -358,41 +315,6 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
                                     data_all$Group == "Humana",
                                   date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.CGM     <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Group == "CGM",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.FIT     <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Group == "FIT",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.GMP     <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Organization.Name == "UHG Glucose Management Program",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.JOY     <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Organization.Name == "JOY",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.SaaS.Optum     <- ifelse(data_all$Enrollment.Current == T &
-                                           data_all$Organization.Name == "SaaS - Optum",
-                                         date.current - data_all$Enrolled.At.Date,
-                                         data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.SaaS.Other    <- ifelse(data_all$Enrollment.Current == T &
-                                          data_all$Organization.Name == "SaaS - Other",
-                                        date.current - data_all$Enrolled.At.Date,
-                                        data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.SaaS.SEIU     <- ifelse(data_all$Enrollment.Current == T &
-                                          data_all$Organization.Name == "SaaS - Optum",
-                                        date.current - data_all$Enrolled.At.Date,
-                                        data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
   # Return data_all
   return(data_all)
