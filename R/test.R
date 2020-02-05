@@ -7,5 +7,8 @@ final.report = F
 
 engage_feb <- clean_merge_billing()
 
+data = engage_feb
+
+stats_02_02 <- make_stats_table(data = engage_feb, date.current = "02-02-2020")
 
 
