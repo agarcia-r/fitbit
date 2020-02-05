@@ -242,7 +242,7 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Enrolled <- NULL
 
   # Separate into YTD enrollment and current enrollment
-  date.jan.1 <- as.Date(paste("01", "01", year(date.current), sep = "_"), format = "%m_%d_%Y")                           # Get the date of the first day of the current year as reference point
+  date.jan.1 <- as.Date(paste("01", "01", lubridate::year(date.current), sep = "_"), format = "%m_%d_%Y")                           # Get the date of the first day of the current year as reference point
   data_all$Enrollment.YTD <- ifelse(!is.na(data_all$Archived.At.Date) & data_all$Archived.At.Date < date.jan.1, F, T)    # If there's an archive date & it's before 01/01/current year, set to False
 
   # Change enrollment to current if (1) Not archived, or if (2) archived but date is in current month
