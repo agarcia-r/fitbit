@@ -20,7 +20,7 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
 
   ## Define a function to import the data
   get_billing_data <- function(str.name, file.list = files){
-    data                       <- read.csv(files[stringr::string_detect(file.list, str.name)], stringsAsFactors = F)
+    data                       <- read.csv(files[stringr::str_detect(file.list, str.name)], stringsAsFactors = F)
     data$Enrolled.At.Date      <- str_trunc(data$Enrolled.At.Date, 10, ellipsis = "")
     data$Archived.At.Date      <- str_trunc(data$Archived.At.Date, 10, ellipsis = "")
 
@@ -43,11 +43,11 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   saas_p6                           <- get_billing_data("Partial 6")
 
   # If it's before the first of the month, then the Carenet file might not exist, we have to account for this
-  carenet_exists <- ifelse(stringr::string_detect(files, "CARENET"), 1, 0)
+  carenet_exists <- ifelse(stringr::str_detect(files, "CARENET"), 1, 0)
   carenet_exists <- sum(carenet_exists)
 
   if(carenet_exists > 0){
-    call_log <- read.csv(files[stringr::string_detect(files, "CARENET_TO_FITBIT_CONTACT")], header = T, sep = "|")
+    call_log <- read.csv(files[stringr::str_detect(files, "CARENET_TO_FITBIT_CONTACT")], header = T, sep = "|")
   } else {
     carenet_exists <- 0
   }
@@ -95,19 +95,19 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   # There are four rows where the actual value of the ID might live
   # Some Salesforce IDs are completely wrong, no clue why -> real IDs must have word "salesforce" in label column and start with "00" in value column
   # Extract just the Salesforce IDs from Identifier.Value.1 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID1 <- ifelse(startsWith(data_all$Identifier.Value.1, "00") & stringr::string_detect(data_all$Identifier.Label.1, "alesforce"),
+  data_all$Salesforce.Lead.ID1 <- ifelse(startsWith(data_all$Identifier.Value.1, "00") & stringr::str_detect(data_all$Identifier.Label.1, "alesforce"),
                                          data_all$Identifier.Value.1, NA)
 
   # Extract just the Salesforce IDs from Identifier.Value.2 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID2 <- ifelse(startsWith(data_all$Identifier.Value.2, "00") & stringr::string_detect(data_all$Identifier.Label.2, "alesforce"),
+  data_all$Salesforce.Lead.ID2 <- ifelse(startsWith(data_all$Identifier.Value.2, "00") & stringr::str_detect(data_all$Identifier.Label.2, "alesforce"),
                                          data_all$Identifier.Value.2, NA)
 
   # Extract just the Salesforce IDs from Identifier.Value.3 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID3 <- ifelse(startsWith(data_all$Identifier.Value.3, "00") & stringr::string_detect(data_all$Identifier.Label.3, "alesforce"),
+  data_all$Salesforce.Lead.ID3 <- ifelse(startsWith(data_all$Identifier.Value.3, "00") & stringr::str_detect(data_all$Identifier.Label.3, "alesforce"),
                                          data_all$Identifier.Value.3, NA)
 
   # Extract just the Salesforce IDs from Identifier.Value.4 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID4 <- ifelse(startsWith(data_all$Identifier.Value.4, "00") & stringr::string_detect(data_all$Identifier.Label.4, "alesforce"),
+  data_all$Salesforce.Lead.ID4 <- ifelse(startsWith(data_all$Identifier.Value.4, "00") & stringr::str_detect(data_all$Identifier.Label.4, "alesforce"),
                                          data_all$Identifier.Value.4, NA)
 
   # Some IDs may have whitespace or erroneous characters
@@ -170,7 +170,7 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
     # If call log is not null (e.g. dim.null == 0), then reduce to latest completed call for each participant
     # and merge this in to the full data. If call log is null, do nothing.
     if(data.null == 0){
-      call_log <- call_log[stringr::string_detect(call_log$Call.Outcome, "ompleted"), ]
+      call_log <- call_log[stringr::str_detect(call_log$Call.Outcome, "ompleted"), ]
 
       # Reduce to most recent call (or it won't merge, but any one completed call is enough to toggle 'Engaged')
       # Find IDs where there have been > 1 call within the current month
