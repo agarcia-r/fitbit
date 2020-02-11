@@ -9,9 +9,6 @@
 
 make_stats_table <- function(dir = directory, data, date.current = date.current.report){
 
-  ## Packages
-  require(tidyverse)
-
   ## Prep an outcomes dataframe
 
   # Create it

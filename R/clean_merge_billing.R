@@ -42,14 +42,23 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   saas_p5                           <- get_billing_data("Partial 5")
   saas_p6                           <- get_billing_data("Partial 6")
 
-  # If it's before the first of the month, then the Carenet file might not exist, we have to account for this
-  carenet_exists <- ifelse(stringr::str_detect(files, "CARENET"), 1, 0)
-  carenet_exists <- sum(carenet_exists)
+  # If it's before the first of the month, then the Carenet file might not exist or might be empty, we have to account for this
+  carenet.exists <- ifelse(stringr::str_detect(files, "CARENET"), 1, 0)
+  carenet.exists <- sum(carenet.exists)
 
-  if(carenet_exists > 0){
+  # If it exists, read the file in
+  if(carenet.exists > 0){
     call_log <- read.csv(files[stringr::str_detect(files, "CARENET_TO_FITBIT_CONTACT")], header = T, sep = "|")
   } else {
-    carenet_exists <- 0
+    carenet.exists <- 0
+  }
+
+  # Check to see if it's empty
+  if(carenet.exists > 0){
+    dim.carenet <- dim(call_log)
+    carenet.exists <- ifelse(dim.carenet[1] == 0 | dim.carenet[2] == 0, 0, 1)
+  } else {
+    carenet.exists <- carenet.exists
   }
 
   ## Plus data
@@ -131,7 +140,9 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID4), data_all$Salesforce.Lead.ID4, data_all$Salesforce.Lead.ID)
 
   ## Finally, let's merge the call data into the full data
-  # Change the column names
+  if(carenet.exists > 0){
+
+    # Reduce & rename columns
     call_log <- call_log[ , c(1, 4, 9)]
     call_colnames <- c("Salesforce.Lead.ID", "Call.Date", "Call.Outcome")
     colnames(call_log) <- call_colnames
@@ -163,38 +174,33 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
       call_log <- call_log[call_log$Call.Date >= first.day & call_log$Call.Date < date.current, ]
     }
 
-    # Add a check to see if call_log is empty
-    dim.data <- dim(call_log)
-    data.null <- ifelse(dim.data[1] == 0 | dim.data[2] == 0, 1, 0)
+    # Reduce to latest completed call for each participant and merge this in to the full data
+    call_log <- call_log[stringr::str_detect(call_log$Call.Outcome, "ompleted"), ]
 
-    # If call log is not null (e.g. dim.null == 0), then reduce to latest completed call for each participant
-    # and merge this in to the full data. If call log is null, do nothing.
-    if(data.null == 0){
-      call_log <- call_log[stringr::str_detect(call_log$Call.Outcome, "ompleted"), ]
+    # Reduce to most recent call (or it won't merge, but any one completed call is enough to toggle 'Engaged')
+    # Find IDs where there have been > 1 call within the current month
+    n_occur <- data.frame(table(call_log$Salesforce.Lead.ID))
+    dim.n.occur <- dim(n_occur)
 
-      # Reduce to most recent call (or it won't merge, but any one completed call is enough to toggle 'Engaged')
-      # Find IDs where there have been > 1 call within the current month
-      n_occur <- data.frame(table(call_log$Salesforce.Lead.ID))
-      dim.n.occur <- dim(n_occur)
-
-      # List IDs with duplicates
-      # If there are none, skip this step
-      if(dim.n.occur[1] != 0 & dim.n.occur[2] != 0){
-        n_occur   <- n_occur[n_occur$Freq > 1, ]
-        call_log  <- call_log[call_log$Salesforce.Lead.ID %in% n_occur$Var1[n_occur$Freq > 1], ]
-      } else {
-        call_log <- call_log
-      }
-
-      # Reduce call_log to most recent calls
-      call_log <- call_log %>% group_by(Salesforce.Lead.ID) %>% arrange(Call.Date) %>% slice(n())
-
-      # Finally merge it with the full billing data
-      merge.columns10 <- get_merge_cols(data_all, call_log)
-      data_all <- merge(data_all, call_log, by = merge.columns10, all = T)
+    # List IDs with duplicates
+    # If there are none, skip this step
+    if(dim.n.occur[1] != 0 & dim.n.occur[2] != 0){
+      n_occur   <- n_occur[n_occur$Freq > 1, ]
+      call_log  <- call_log[call_log$Salesforce.Lead.ID %in% n_occur$Var1[n_occur$Freq > 1], ]
     } else {
-      data_all <- data_all
+      call_log <- call_log
     }
+
+    # Reduce call_log to most recent calls
+    call_log <- call_log %>% group_by(Salesforce.Lead.ID) %>% arrange(Call.Date) %>% slice(n())
+
+    # Finally merge it with the full billing data
+    merge.columns10 <- get_merge_cols(data_all, call_log)
+    data_all <- merge(data_all, call_log, by = merge.columns10, all = T)
+
+  } else {
+  data_all <- data_all
+}
 
   # Should have the exact same number of rows
   # Some participants in the call log don't have Salesforce IDs
@@ -210,6 +216,9 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
 
   data_all$Client.Type <- ifelse(data_all$Organization.Name %in% saas_orgs, "SaaS", "Care")
   data_all$Client.Type <- as.factor(data_all$Client.Type)
+
+  # Don't need the SaaS dataset anymore
+  rm(saas_combined)
 
   # Let's dig in to groups
 
@@ -270,7 +279,7 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Engaged.Status <- ifelse(data_all$Enrollment.Current == F, F, data_all$Engaged.Status)
 
   # Update based on Coach Calls -> everyone who is archived in the current month should be included in "Enrollment.Current," call_log1 has been reduced to only relevant calls already
-  if(data.null == 0){
+  if(carenet.exists > 0){
   data_all$Engaged.Status <- ifelse(!is.na(data_all$Call.Date), T, data_all$Engaged.Status)
   } else {
     data_all = data_all

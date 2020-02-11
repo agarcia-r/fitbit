@@ -2,13 +2,13 @@
 % Please edit documentation in R/make_coach_report.R
 \name{make_coach_report}
 \alias{make_coach_report}
-\title{Make Coach Engagement Reports}
+\title{Make Coach Report Function}
 \usage{
 make_coach_report(data, coach, dir = getwd(),
   date.current = date.current.report)
 }
 \description{
-This function takes a cleaned billing file and creates the weekly engagement report for a specific coach.
+This function takes the output of the clean_merge_data function and produces coach reports as .csv files in the working directory.
 }
 \examples{
 make_coach_report()
