@@ -6,7 +6,7 @@
 #' @examples
 #' clean_merge_billing()
 
-clean_merge_billing <- function(dir = directory, first.day = date.first.day, date.current = date.current.report, final.report = F){
+clean_merge_billing <- function(dir = directory, first.day = date.first.day, date.current = date.current.report, final.report = F, saas = F){
 
   ## Set dir and read in files
   setwd(dir)
@@ -34,13 +34,17 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   care_humana                       <- get_billing_data("Humana")
   care_seiu                         <- get_billing_data("SEIU")
 
-  # SaaS
+  # SaaS - only run this if we're including SaaS
+  if(saas == T){
   saas_p1                           <- get_billing_data("Partial 1")
   saas_p2                           <- get_billing_data("Partial 2")
   saas_p3                           <- get_billing_data("Partial 3")
   saas_p4                           <- get_billing_data("Partial 4")
   saas_p5                           <- get_billing_data("Partial 5")
   saas_p6                           <- get_billing_data("Partial 6")
+  } else {
+    saas = saas
+  }
 
   # If it's before the first of the month, then the Carenet file might not exist or might be empty, we have to account for this
   carenet.exists <- ifelse(stringr::str_detect(files, "CARENET"), 1, 0)
@@ -70,74 +74,90 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   care_combined <- merge(care_humana, care_seiu, by = merge.columns1, all = T)
 
   # Merge all SaaS data
-  merge.columns2 <- get_merge_cols(saas_p1, saas_p2)
-  saas_combined   <- merge(saas_p1, saas_p2, by = merge.columns2, all = T)
+  if(saas == T){
+    merge.columns2 <- get_merge_cols(saas_p1, saas_p2)
+    saas_combined   <- merge(saas_p1, saas_p2, by = merge.columns2, all = T)
 
-  merge.columns3 <- get_merge_cols(saas_combined, saas_p3)
-  saas_combined   <- merge(saas_combined, saas_p3, by = merge.columns3, all = T)
+    merge.columns3 <- get_merge_cols(saas_combined, saas_p3)
+    saas_combined   <- merge(saas_combined, saas_p3, by = merge.columns3, all = T)
 
-  merge.columns4 <- get_merge_cols(saas_combined, saas_p4)
-  saas_combined   <- merge(saas_combined, saas_p4, by = merge.columns4, all = T)
+    merge.columns4 <- get_merge_cols(saas_combined, saas_p4)
+    saas_combined   <- merge(saas_combined, saas_p4, by = merge.columns4, all = T)
 
-  merge.columns5 <- get_merge_cols(saas_combined, saas_p5)
-  saas_combined   <- merge(saas_combined, saas_p5, by = merge.columns5, all = T)
+    merge.columns5 <- get_merge_cols(saas_combined, saas_p5)
+    saas_combined   <- merge(saas_combined, saas_p5, by = merge.columns5, all = T)
 
-  merge.columns6 <- get_merge_cols(saas_combined, saas_p6)
-  saas_combined   <- merge(saas_combined, saas_p6, by = merge.columns6, all = T)
+    merge.columns6 <- get_merge_cols(saas_combined, saas_p6)
+    saas_combined   <- merge(saas_combined, saas_p6, by = merge.columns6, all = T)
 
-  # Merge Plus data with SaaS data
-  # print(nrow(plus_combined) + nrow(saas_combined)) should yield same number of rows as total from individual datasets
-  merge.columns7 <- get_merge_cols(care_combined, saas_combined)
-  data_all <- merge(saas_combined, care_combined, by = merge.columns7, all = T)
+    # Merge Plus data with SaaS data
+    # print(nrow(plus_combined) + nrow(saas_combined)) should yield same number of rows as total from individual datasets
+    merge.columns7 <- get_merge_cols(care_combined, saas_combined)
+    data_all <- merge(saas_combined, care_combined, by = merge.columns7, all = T)
+  } else {
+    data_all <- care_combined
+  }
 
   # Remove all the other datasets
-  rm(list = c("care_combined", "care_humana", "care_seiu", "saas_p1", "saas_p2", "saas_p3", "saas_p4", "saas_p5", "saas_p6"))
+  if(saas == T){
+    rm(list = c("care_combined", "care_humana", "care_seiu", "saas_p1", "saas_p2", "saas_p3", "saas_p4", "saas_p5", "saas_p6"))
+  } else {
+    rm(list = c("care_combined", "care_humana", "care_seiu"))
+  }
 
   ## Now let's clean up the identifier columns - we want to extract any Salesforce IDs so we can merge this with the call sheet
   # Change all of them to character
-  data_all$Identifier.Value.1 <- as.character(data_all$Identifier.Value.1)
-  data_all$Identifier.Value.2 <- as.character(data_all$Identifier.Value.2)
-  data_all$Identifier.Value.3 <- as.character(data_all$Identifier.Value.3)
-  data_all$Identifier.Value.4 <- as.character(data_all$Identifier.Value.4)
+  if(saas == T){
+    data_all$Identifier.Value.1 <- as.character(data_all$Identifier.Value.1)
+    data_all$Identifier.Value.2 <- as.character(data_all$Identifier.Value.2)
+    data_all$Identifier.Value.3 <- as.character(data_all$Identifier.Value.3)
+    data_all$Identifier.Value.4 <- as.character(data_all$Identifier.Value.4)
 
-  # There are multiple variations of how "Salesforce ID" is identified, e.g. might say "salesforce-id," "SalesforceLeadID" etc.
-  # There are four rows where the actual value of the ID might live
-  # Some Salesforce IDs are completely wrong, no clue why -> real IDs must have word "salesforce" in label column and start with "00" in value column
-  # Extract just the Salesforce IDs from Identifier.Value.1 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID1 <- ifelse(startsWith(data_all$Identifier.Value.1, "00") & stringr::str_detect(data_all$Identifier.Label.1, "alesforce"),
-                                         data_all$Identifier.Value.1, NA)
+    # There are multiple variations of how "Salesforce ID" is identified, e.g. might say "salesforce-id," "SalesforceLeadID" etc.
+    # There are four rows where the actual value of the ID might live
+    # Some Salesforce IDs are completely wrong, no clue why -> real IDs must have word "salesforce" in label column and start with "00" in value column
+    # Extract just the Salesforce IDs from Identifier.Value.1 by selecting only values with label containing "alesforce" that also start with "00"
+    data_all$Salesforce.Lead.ID1 <- ifelse(startsWith(data_all$Identifier.Value.1, "00") & stringr::str_detect(data_all$Identifier.Label.1, "alesforce"),
+                                            data_all$Identifier.Value.1, NA)
 
-  # Extract just the Salesforce IDs from Identifier.Value.2 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID2 <- ifelse(startsWith(data_all$Identifier.Value.2, "00") & stringr::str_detect(data_all$Identifier.Label.2, "alesforce"),
-                                         data_all$Identifier.Value.2, NA)
+    # Extract just the Salesforce IDs from Identifier.Value.2 by selecting only values with label containing "alesforce" that also start with "00"
+    data_all$Salesforce.Lead.ID2 <- ifelse(startsWith(data_all$Identifier.Value.2, "00") & stringr::str_detect(data_all$Identifier.Label.2, "alesforce"),
+                                            data_all$Identifier.Value.2, NA)
 
-  # Extract just the Salesforce IDs from Identifier.Value.3 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID3 <- ifelse(startsWith(data_all$Identifier.Value.3, "00") & stringr::str_detect(data_all$Identifier.Label.3, "alesforce"),
-                                         data_all$Identifier.Value.3, NA)
+    # Extract just the Salesforce IDs from Identifier.Value.3 by selecting only values with label containing "alesforce" that also start with "00"
+    data_all$Salesforce.Lead.ID3 <- ifelse(startsWith(data_all$Identifier.Value.3, "00") & stringr::str_detect(data_all$Identifier.Label.3, "alesforce"),
+                                            data_all$Identifier.Value.3, NA)
 
-  # Extract just the Salesforce IDs from Identifier.Value.4 by selecting only values with label containing "alesforce" that also start with "00"
-  data_all$Salesforce.Lead.ID4 <- ifelse(startsWith(data_all$Identifier.Value.4, "00") & stringr::str_detect(data_all$Identifier.Label.4, "alesforce"),
-                                         data_all$Identifier.Value.4, NA)
+    # Extract just the Salesforce IDs from Identifier.Value.4 by selecting only values with label containing "alesforce" that also start with "00"
+    data_all$Salesforce.Lead.ID4 <- ifelse(startsWith(data_all$Identifier.Value.4, "00") & stringr::str_detect(data_all$Identifier.Label.4, "alesforce"),
+                                            data_all$Identifier.Value.4, NA)
 
-  # Some IDs may have whitespace or erroneous characters
-  # Remove whitespace and erroneous characters from both Salesforce ID columns
-  data_all$Salesforce.Lead.ID1 <- stringr::str_trim(data_all$Salesforce.Lead.ID1, side = "both")
-  data_all$Salesforce.Lead.ID2 <- stringr::str_trim(data_all$Salesforce.Lead.ID2, side = "both")
-  data_all$Salesforce.Lead.ID3 <- stringr::str_trim(data_all$Salesforce.Lead.ID3, side = "both")
-  data_all$Salesforce.Lead.ID4 <- stringr::str_trim(data_all$Salesforce.Lead.ID4, side = "both")
+    # Some IDs may have whitespace or erroneous characters
+    # Remove whitespace and erroneous characters from both Salesforce ID columns
+    data_all$Salesforce.Lead.ID1 <- stringr::str_trim(data_all$Salesforce.Lead.ID1, side = "both")
+    data_all$Salesforce.Lead.ID2 <- stringr::str_trim(data_all$Salesforce.Lead.ID2, side = "both")
+    data_all$Salesforce.Lead.ID3 <- stringr::str_trim(data_all$Salesforce.Lead.ID3, side = "both")
+    data_all$Salesforce.Lead.ID4 <- stringr::str_trim(data_all$Salesforce.Lead.ID4, side = "both")
 
-  data_all$Salesforce.Lead.ID1 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID1, "[[:punct:]]", " ")
-  data_all$Salesforce.Lead.ID2 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID2, "[[:punct:]]", " ")
-  data_all$Salesforce.Lead.ID3 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID3, "[[:punct:]]", " ")
-  data_all$Salesforce.Lead.ID4 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID4, "[[:punct:]]", " ")
+    data_all$Salesforce.Lead.ID1 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID1, "[[:punct:]]", " ")
+    data_all$Salesforce.Lead.ID2 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID2, "[[:punct:]]", " ")
+    data_all$Salesforce.Lead.ID3 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID3, "[[:punct:]]", " ")
+    data_all$Salesforce.Lead.ID4 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID4, "[[:punct:]]", " ")
 
-  # Start combining the columns by adding the IDs from Salesforce.Lead.ID1
-  # Then, if no ID was added in step 1 (e.g. Salesforce.Lead.ID is still NA), copy over Salesforce.Lead.ID2 (if it exists)
-  # Continue for Salesforce.Lead.ID3 & 4
-  data_all$Salesforce.Lead.ID  <- data_all$Salesforce.Lead.ID1
-  data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID2), data_all$Salesforce.Lead.ID2, data_all$Salesforce.Lead.ID)
-  data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID3), data_all$Salesforce.Lead.ID3, data_all$Salesforce.Lead.ID)
-  data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID4), data_all$Salesforce.Lead.ID4, data_all$Salesforce.Lead.ID)
+    # Start combining the columns by adding the IDs from Salesforce.Lead.ID1
+    # Then, if no ID was added in step 1 (e.g. Salesforce.Lead.ID is still NA), copy over Salesforce.Lead.ID2 (if it exists)
+    # Continue for Salesforce.Lead.ID3 & 4
+    data_all$Salesforce.Lead.ID  <- data_all$Salesforce.Lead.ID1
+    data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID2), data_all$Salesforce.Lead.ID2, data_all$Salesforce.Lead.ID)
+    data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID3), data_all$Salesforce.Lead.ID3, data_all$Salesforce.Lead.ID)
+    data_all$Salesforce.Lead.ID  <- ifelse(is.na(data_all$Salesforce.Lead.ID) & !is.na(data_all$Salesforce.Lead.ID4), data_all$Salesforce.Lead.ID4, data_all$Salesforce.Lead.ID)
+  } else {
+    data_all$Identifier.Value.1 <- as.character(data_all$Identifier.Value.1)
+    data_all$Salesforce.Lead.ID1 <- ifelse(startsWith(data_all$Identifier.Value.1, "00") & stringr::str_detect(data_all$Identifier.Label.1, "alesforce"),
+                                           data_all$Identifier.Value.1, NA)
+    data_all$Salesforce.Lead.ID1 <- stringr::str_trim(data_all$Salesforce.Lead.ID1, side = "both")
+    data_all$Salesforce.Lead.ID1 <- stringr::str_replace_all(data_all$Salesforce.Lead.ID1, "[[:punct:]]", " ")
+  }
 
   ## Finally, let's merge the call data into the full data
   if(carenet.exists > 0){
@@ -211,30 +231,21 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   ## Let's clean up the Group columns
 
   # Add columns on the end to specify SaaS or Care
-  saas_combined$Organization.Name <- as.factor(saas_combined$Organization.Name)
-  saas_orgs                       <- levels(saas_combined$Organization.Name)
+  if(saas == T){
+    saas_combined$Organization.Name <- as.factor(saas_combined$Organization.Name)
+    saas_orgs                       <- levels(saas_combined$Organization.Name)
 
-  data_all$Client.Type <- ifelse(data_all$Organization.Name %in% saas_orgs, "SaaS", "Care")
-  data_all$Client.Type <- as.factor(data_all$Client.Type)
+    data_all$Client.Type <- ifelse(data_all$Organization.Name %in% saas_orgs, "SaaS", "Care")
+    data_all$Client.Type <- as.factor(data_all$Client.Type)
+    rm(saas_combined)
+  } else {
+    data_all <- data_all
+  }
 
-  # Don't need the SaaS dataset anymore
-  rm(saas_combined)
+  # Let's dig in to groups -- THESE ARE NOW DEFUNCT
 
-  # Let's dig in to groups
-
-  # Categorize
   # First make a column that concatenates all the group tags
   data_all$Group.All <- paste(data_all$Group.1, data_all$Group.2, data_all$Group.3, data_all$Group.4, data_all$Group.5, data_all$Group.6, data_all$Group.7)
-
-  # Then categorize
-    # Start by creating blank column
-      data_all$Group <- NA
-
-    # Then categorize by subgroup
-      data_all$Group <- ifelse(data_all$Organization.Name == "Humana", "Humana", data_all$Group)
-      data_all$Group <- ifelse(data_all$Organization.Name == "SEIU 775 Benefits Group", "SEIU", data_all$Group)
-      data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "SaaS", "SaaS", data_all$Group)
-      data_all$Group <- ifelse(is.na(data_all$Group) & data_all$Client.Type == "Care", "Care", data_all$Group)
 
   ## Now deal with enrollment
   # First clean up Archived column
@@ -294,33 +305,51 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
 
   # Calculate enrollment time in days
   # Calculate avg. time enrolled
-  data_all$Diff.Archived <- ifelse(data_all$Archived == T,
-                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date,
-                                   NA)
+  if(saas == T){
+    data_all$Diff.Archived <- ifelse(data_all$Archived == T,
+                                     data_all$Archived.At.Date - data_all$Enrolled.At.Date,
+                                     NA)
 
-  data_all$Diff.Current <- ifelse(data_all$Enrollment.Current == T,
-                                  date.current - data_all$Enrolled.At.Date,
-                                  NA)
+    data_all$Diff.Current <- ifelse(data_all$Enrollment.Current == T,
+                                    date.current - data_all$Enrolled.At.Date,
+                                    NA)
 
-  data_all$Diff.All     <- ifelse(data_all$Enrollment.Current == T,
+    data_all$Diff.All     <- ifelse(data_all$Enrollment.Current == T,
+                                    date.current - data_all$Enrolled.At.Date,
+                                    data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+    data_all$Diff.Humana  <- ifelse(data_all$Enrollment.Current == T &
+                                      data_all$Organization.Name == "Humana",
+                                    date.current - data_all$Enrolled.At.Date,
+                                    data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+    data_all$Diff.SEIU  <- ifelse(data_all$Enrollment.Current == T &
+                                      data_all$Organization.Name == "SEIU",
+                                    date.current - data_all$Enrolled.At.Date,
+                                    data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+  } else {
+    data_all$Diff.Archived <- ifelse(data_all$Archived == T,
+                                     data_all$Archived.At.Date - data_all$Enrolled.At.Date,
+                                     NA)
+
+    data_all$Diff.Current <- ifelse(data_all$Enrollment.Current == T,
+                                    date.current - data_all$Enrolled.At.Date,
+                                    NA)
+
+    data_all$Diff.All     <- ifelse(data_all$Enrollment.Current == T,
+                                    date.current - data_all$Enrolled.At.Date,
+                                    data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+    data_all$Diff.Humana  <- ifelse(data_all$Enrollment.Current == T &
+                                      data_all$Organization.Name == "Humana",
+                                    date.current - data_all$Enrolled.At.Date,
+                                    data_all$Archived.At.Date - data_all$Enrolled.At.Date)
+
+    data_all$Diff.SEIU  <- ifelse(data_all$Enrollment.Current == T &
+                                    data_all$Organization.Name == "SEIU",
                                   date.current - data_all$Enrolled.At.Date,
                                   data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.Care    <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Client.Type == "Care",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.SaaS    <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Client.Type == "SaaS",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
-  data_all$Diff.Humana  <- ifelse(data_all$Enrollment.Current == T &
-                                    data_all$Group == "Humana",
-                                  date.current - data_all$Enrolled.At.Date,
-                                  data_all$Archived.At.Date - data_all$Enrolled.At.Date)
-
+}
   # Return data_all
   return(data_all)
 }
