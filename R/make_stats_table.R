@@ -83,8 +83,8 @@ make_stats_table <- function(dir = directory, data, date.current = date.current.
     # Next enrollment YTD
     # Here there's no "False" column in table because everyone in dataset was enrolled at some point in the year
     table_groups           <- table(data$Group.1, data$Enrollment.YTD)                                 # Rows in Stats Table:
-    stats$Enrolled.YTD[1]       <- as.vector(table_groups[2, 2])                                          # Row 1: SEIU
-    stats$Enrolled.YTD[2]       <- as.vector(table_groups[1, 2])                                          # Row 2 Humana
+    stats$Enrolled.YTD[1]       <- as.vector(table_groups[2, 1])                                          # Row 1: SEIU
+    stats$Enrolled.YTD[2]       <- as.vector(table_groups[1, 1])                                          # Row 2 Humana
     stats$Enrolled.YTD[3]       <- sum(stats$Enrolled.YTD[1:2])                                                # Row 3: All Care
 
     # Calculate engagement by program - same method as above
