@@ -258,12 +258,9 @@ clean_merge_billing <- function(dir = directory, first.day = date.first.day, dat
   data_all$Archived.At.Date  <- ifelse(!is.na(data_all$Reactived.At.Date), NA, data_all$Archived.At.Date)                # If someone's been reactivated, set their Archive date to NA (not actually an archive date)
   data_all$Archived.At.Date  <- as.Date.numeric(data_all$Archived.At.Date, origin = "1970-01-01")                       # For some reason this Archive.Date to numeric, change it back
 
-  # Deal w/Enrollment column -> delete for clarity (we'll be creating new Enrollment YTD & Enrollment Current columns)
+  # Separa
+  data_all$Enrollment.YTD <- as.logical(data_all$Enrolled)
   data_all$Enrolled <- NULL
-
-  # Separate into YTD enrollment and current enrollment
-  date.jan.1 <- as.Date(paste("01", "01", lubridate::year(date.current), sep = "_"), format = "%m_%d_%Y")                           # Get the date of the first day of the current year as reference point
-  data_all$Enrollment.YTD <- ifelse(!is.na(data_all$Archived.At.Date) & data_all$Archived.At.Date < date.jan.1, F, T)    # If there's an archive date & it's before 01/01/current year, set to False
 
   # Change enrollment to current if (1) Not archived, or if (2) archived but date is in current month
   data_all$Enrollment.Current <- data_all$Enrollment.YTD                                                                 # Set Enrollment.Current to = Enrollment.YTD to start (less restrictive)
