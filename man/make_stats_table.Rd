@@ -5,7 +5,7 @@
 \title{Make Stats Table Function}
 \usage{
 make_stats_table(dir = directory, data,
-  date.current = date.current.report)
+  date.current = date.current.report, saas = F)
 }
 \description{
 This function takes the output of the clean_merge_data function and turns it into the customer statistics table.

@@ -5,7 +5,7 @@
 \title{Clean & Merge Data Function}
 \usage{
 clean_merge_billing(dir = directory, first.day = date.first.day,
-  date.current = date.current.report, final.report = F)
+  date.current = date.current.report, final.report = F, saas = F)
 }
 \description{
 This function allows you import all of the associated files for one billing report, clean them, and merge them.
