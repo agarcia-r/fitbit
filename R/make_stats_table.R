@@ -96,7 +96,7 @@ make_stats_table <- function(dir = directory, data, date.current = date.current.
       table_groups           <- table(data$Group.1, data$Engaged.Status)                       # Rows in Stats Table:
       stats$Engaged[1]       <- as.vector(table_groups[2, 2])                                          # Row 1: SEIU
       stats$Engaged[2]       <- as.vector(table_groups[1, 2])                                          # Row 2 Humana
-      stats$Engaged[3]       <- sum(stats$Engaged.Status[1:2])                                         # Row 3: All Care
+      stats$Engaged[3]       <- sum(stats$Engaged[1:2])                                         # Row 3: All Care
 
       # Calculate engaged_percent
       stats$Engaged.Percent       <- round((stats$Engaged / stats$Enrolled.Current) * 100, 0)
