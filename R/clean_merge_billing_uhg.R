@@ -8,93 +8,12 @@
 
 clean_merge_billing_uhg <- function(dir = directory, first.day = date.first.day, date.current = date.current.report, final.report = F){
 
-  ## Helper packages
-  require(tidyverse)
-  require(lubridate)
-
-  ## Set dir and read in files
-  setwd(dir)
-
   ## Format the dates
   first.day    <- as.Date(first.day, format = "%m-%d-%Y")
   date.current <- as.Date(date.current, format = "%m-%d-%Y")
 
   ## Run this line to see all the files in the dir
   files <- list.files()
-
-  ## Define a function to import the data
-  get_billing_data <- function(str.name, file.list = files){
-    data                       <- read.csv(files[str_detect(file.list, str.name)], stringsAsFactors = F)
-    data$Enrolled.At.Date      <- str_trunc(data$Enrolled.At.Date, 10, ellipsis = "")
-    data$Archived.At.Date      <- str_trunc(data$Archived.At.Date, 10, ellipsis = "")
-
-    data$Enrolled.At.Date      <- as.Date(data$Enrolled.At.Date, format = "%m/%d/%Y")
-    data$Archived.At.Date      <- as.Date(data$Archived.At.Date, format = "%m/%d/%Y")
-    return(data)
-  }
-
-  ## Read the files in, deal with dates here because it's easier
-  # Care
-  plus_humana                       <- get_billing_data("Humana")
-  plus_gmp                          <- get_billing_data("Fitbit Plus UHG Glucose Management Program 2019")
-  plus_gmp_fitbit                   <- get_billing_data("Fitbit Plus UHG Glucose Management Program  Fitbit")
-  plus_seiu                         <- get_billing_data("SEIU")
-
-  # SaaS
-  saas_p1                           <- get_billing_data("Partial 1")
-  saas_p2                           <- get_billing_data("Partial 2")
-  saas_p3                           <- get_billing_data("Partial 3")
-  saas_p4                           <- get_billing_data("Partial 4")
-  saas_p5                           <- get_billing_data("Partial 5")
-  saas_p6                           <- get_billing_data("Partial 6")
-
-  # Call logs areneeded to update engagement status of participants - both the Master Calls file & the Carenet file
-  call_log1 <- read.csv(files[str_detect(files, "Coach Calls")], stringsAsFactors = F)
-
-  # If it's before the first of the month, then the Carenet file might not exist, we have to account for this
-  carenet_exists <- ifelse(str_detect(files, "Carenet"), 1, 0)
-  carenet_exists <- sum(carenet_exists)
-
-  if(carenet_exists > 0){
-    call_log2 <- read.csv(files[str_detect(files, "Carenet")], stringsAsFactors = F)
-  } else {
-    return()
-  }
-
-  ## Plus data
-
-  # Define a function to merge the data based on shared columns
-
-  # Merge the data based on shared columns
-  merge.columns1 <- get_merge_cols(plus_gmp, plus_gmp_fitbit)
-  plus_combined <- merge(plus_gmp, plus_gmp_fitbit, by = merge.columns1, all = T)
-
-  merge.columns2 <- get_merge_cols(plus_combined, plus_seiu)
-  plus_combined <- merge(plus_combined, plus_seiu, by = merge.columns2, all = T)
-
-  merge.columns3 <- get_merge_cols(plus_combined, plus_humana)
-  plus_combined <- merge(plus_combined, plus_humana, by = merge.columns3, all = T)
-
-  # Merge all SaaS data
-  merge.columns4 <- get_merge_cols(saas_p1, saas_p2)
-  saas_combined   <- merge(saas_p1, saas_p2, by = merge.columns4, all = T)
-
-  merge.columns5 <- get_merge_cols(saas_combined, saas_p3)
-  saas_combined   <- merge(saas_combined, saas_p3, by = merge.columns5, all = T)
-
-  merge.columns6 <- get_merge_cols(saas_combined, saas_p4)
-  saas_combined   <- merge(saas_combined, saas_p4, by = merge.columns6, all = T)
-
-  merge.columns7 <- get_merge_cols(saas_combined, saas_p5)
-  saas_combined   <- merge(saas_combined, saas_p5, by = merge.columns7, all = T)
-
-  merge.columns8 <- get_merge_cols(saas_combined, saas_p6)
-  saas_combined   <- merge(saas_combined, saas_p6, by = merge.columns8, all = T)
-
-  # Merge Plus data with SaaS data
-  # print(nrow(plus_combined) + nrow(saas_combined)) should yield same number of rows as total from individual datasets
-  merge.columns9 <- get_merge_cols(plus_combined, saas_combined)
-  data_all <- merge(saas_combined, plus_combined, by = merge.columns9, all = T)
 
   ## Now let's clean up the identifier columns - we want to extract any Salesforce IDs so we can merge this with the call sheet
   # Change all of them to character
@@ -285,10 +204,6 @@ clean_merge_billing_uhg <- function(dir = directory, first.day = date.first.day,
   # Deal w/Enrollment column -> delete for clarity (we'll be creating new Enrollment YTD & Enrollment Current columns)
   data_all$Enrolled <- NULL
 
-  # Separate into YTD enrollment and current enrollment
-  date.jan.1 <- as.Date(paste("01", "01", year(date.current), sep = "_"), format = "%m_%d_%Y")                           # Get the date of the first day of the current year as reference point
-  data_all$Enrollment.YTD <- ifelse(!is.na(data_all$Archived.At.Date) & data_all$Archived.At.Date < date.jan.1, F, T)    # If there's an archive date & it's before 01/01/current year, set to False
-
   # Change enrollment to current if (1) Not archived, or if (2) archived but date is in current month
   data_all$Enrollment.Current <- data_all$Enrollment.YTD                                                                 # Set Enrollment.Current to = Enrollment.YTD to start (less restrictive)
   data_all$Enrollment.Current <- ifelse(!is.na(data_all$Archived.At.Date) & data_all$Archived.At.Date < first.day,       # Now, if Archived.At.Date exists & is less than 1st of current month...
@@ -394,7 +309,11 @@ clean_merge_billing_uhg <- function(dir = directory, first.day = date.first.day,
                                         date.current - data_all$Enrolled.At.Date,
                                         data_all$Archived.At.Date - data_all$Enrolled.At.Date)
 
+  write.csv(data_all, data_name)
+
+
   # Return data_all
   return(data_all)
 }
+
 
